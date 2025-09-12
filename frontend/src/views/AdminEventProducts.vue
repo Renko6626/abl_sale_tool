@@ -48,7 +48,7 @@
             <td>{{ product.initial_stock }}</td>
             <td>{{ product.current_stock }}</td>
             <td>
-                <button class="action-btn" @click="$openEditModal(product)">编辑</button>
+                <button class="action-btn" @click="openEditModal(product)">编辑</button>
                 <!-- 【新增】删除按钮 -->
                 <button class="action-btn btn-danger" @click="handleDelete(product)">删除</button>
             </td>
