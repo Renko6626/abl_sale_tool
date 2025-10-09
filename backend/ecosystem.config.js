@@ -18,7 +18,7 @@ module.exports = {
       // 工作目录
       cwd: backendDir,
       
-      interpreter: path.join(backendDir, 'venv', 'bin', 'python'),
+      interpreter: 'none',
 
       instances: 1,
       autorestart: true,
