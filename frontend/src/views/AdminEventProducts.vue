@@ -13,8 +13,18 @@
         <h3>上架新商品</h3>
         
         <!-- 【新增】搜索框 -->
-        <div class="product-search-container">
-          <input type="text" v-model="searchQuery" placeholder="搜索名称或编号..." class="search-input">
+        <div class="search-filters">
+          <input 
+            type="text" 
+            v-model="searchQuery" 
+            placeholder="搜索名称或编号..." 
+            class="search-input"
+          >
+          <!-- 【新增】分类筛选下拉框 -->
+          <select v-model="selectedCategory" class="category-select">
+            <option value="">全部分类</option>
+            <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+          </select>
         </div>
 
         <!-- 【新增】可滚动的制品预览栏 -->
@@ -131,26 +141,40 @@ const backendUrl = 'http://127.0.0.1:5000';
 
 const searchQuery = ref(''); // 这是组件内部的搜索词，与 store 中的 searchTerm 隔离
 const stockInputRef = ref(null);
+const selectedCategory = ref(''); // 新增：用于存储所选分类
 
-// 【修改】计算属性现在从 productStore.masterProducts 读取数据
+// 【新增】动态生成分类选项
+const categoryOptions = computed(() => {
+  const cats = (productStore.masterProducts || [])
+    .map(p => p.category)
+    .filter(cat => !!cat && cat.trim() !== ''); // 过滤掉空或无效的分类
+  return [...new Set(cats)]; // 使用 Set 去重
+});
+
+// 【修改】更新过滤逻辑，加入分类筛选
 const filteredProducts = computed(() => {
-  // 1. 创建一个当前展会已有商品编号的 Set，用于快速查找
   const existingProductCodes = new Set(eventDetailStore.products.map(p => p.product_code));
+  
+  // 1. 从所有母版商品开始
+  let availableProducts = productStore.masterProducts
+    // 2. 过滤掉已上架的
+    .filter(masterProduct => !existingProductCodes.has(masterProduct.product_code));
 
-  // 2. 过滤掉已经存在的商品
-  const availableProducts = productStore.masterProducts.filter(
-    masterProduct => !existingProductCodes.has(masterProduct.product_code)
-  );
-
-  // 3. 在过滤后的结果上执行搜索
-  if (!searchQuery.value) {
-    return availableProducts;
+  // 3. 按分类过滤
+  if (selectedCategory.value) {
+    availableProducts = availableProducts.filter(p => p.category === selectedCategory.value);
   }
-  const lowerCaseQuery = searchQuery.value.toLowerCase();
-  return availableProducts.filter(product =>
-    product.name.toLowerCase().includes(lowerCaseQuery) ||
-    product.product_code.toLowerCase().includes(lowerCaseQuery)
-  );
+
+  // 4. 按名称/编号搜索
+  if (searchQuery.value.trim()) {
+    const lowerCaseQuery = searchQuery.value.toLowerCase();
+    availableProducts = availableProducts.filter(product =>
+      product.name.toLowerCase().includes(lowerCaseQuery) ||
+      product.product_code.toLowerCase().includes(lowerCaseQuery)
+    );
+  }
+  
+  return availableProducts;
 });
 
 function selectProduct(product) {
@@ -392,8 +416,15 @@ button:disabled {
 .product-search-container {
   margin-bottom: 1rem;
 }
+/* 【修改】搜索区域的容器样式 */
+.search-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
 .search-input {
-  width: 100%;
+  flex-grow: 1; /* 让搜索框占据更多空间 */
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
   color: var(--primary-text-color);
@@ -406,6 +437,7 @@ button:disabled {
   border-color: var(--accent-color);
   outline: none;
 }
+
 
 .product-preview-container {
   max-height: 220px; /* 限制最大高度，超出则滚动 */
@@ -476,4 +508,14 @@ button:disabled {
   font-size: 0.8rem;
   color: #888;
 }
+.category-select {
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-color);
+  color: var(--primary-text-color);
+  min-width: 150px; /* 给一个最小宽度 */
+  font-size: 1rem;
+}
+
 </style>
