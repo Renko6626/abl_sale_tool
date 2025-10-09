@@ -18,7 +18,7 @@ PROJECT_NAME="abl-booth-tool"
 DOMAIN_NAME="booth-tool.secret-sealing.club"
 WWW_DOMAIN_NAME="www.booth-tool.secret-sealing.club"
 # 请务必替换成您自己的有效邮箱
-EMAIL="your_email@xx.xx"
+EMAIL="youremain@example.com"
 
 # --- 自动检测路径 (请勿修改) ---
 # 获取脚本所在的绝对路径，作为项目根目录
@@ -42,7 +42,7 @@ echo "--- 项目根目录: ${PROJECT_BASE_DIR} ---"
 # 1. 安装系统基础依赖
 echo "--> 正在安装系统基础依赖 (Nginx, Python, Git, Curl)..."
 sudo apt-get update
-sudo apt-get install -y nginx python3-pip python3-venv git curl
+sudo apt-get install -y nginx python3.12 python3.12-venv python3-pip git curl
 
 # 2. 设置 Node.js 和 PM2 环境 (使用 NVM 和 Gitee 镜像)
 echo "--> 正在配置 Node.js 和 PM2 环境..."
@@ -91,12 +91,13 @@ cd "${BACKEND_DIR}"
 
 # 创建 Python 虚拟环境
 if [ ! -d "${VENV_PATH}" ]; then
-    python3 -m venv venv
+    python3.12 -m venv venv
     echo "Python 虚拟环境已创建。"
 fi
 
 # 在虚拟环境中安装依赖
 source "${VENV_PATH}/bin/activate"
+pip install --upgrade pip
 pip install -r requirements.txt
 pip install gunicorn # 确保 gunicorn 在虚拟环境中
 deactivate
