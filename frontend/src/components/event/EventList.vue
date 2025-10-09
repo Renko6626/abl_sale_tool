@@ -1,14 +1,31 @@
 <template>
   <div class="list-container">
     <h2>展会列表</h2>
-    
+
+    <!-- 【新增】搜索和过滤区域 -->
+    <div class="search-container">
+      <div class="search-group">
+        <label for="search-name">按名称搜索:</label>
+        <input id="search-name" type="text" v-model="searchName" placeholder="输入展会名称关键字...">
+      </div>
+      <div class="search-group">
+        <label for="search-date-start">日期范围:</label>
+        <div class="date-range-inputs">
+          <input id="search-date-start" type="date" v-model="dateRangeStart">
+          <span>至</span>
+          <input id="search-date-end" type="date" v-model="dateRangeEnd">
+        </div>
+      </div>
+       <button @click="clearFilters" class="btn btn-secondary">清空筛选</button>
+    </div>
+
     <div v-if="store.isLoading" class="loading-message">正在加载展会数据...</div>
     <div v-else-if="store.error" class="error-message">{{ store.error }}</div>
     
-    <ul v-else-if="store.events.length" class="event-list">
-      <!-- 在 li 标签上添加一个 :class 绑定，用于视觉区分正在更新的项 -->
+    <!-- 【修改】v-for 循环现在使用 filteredEvents 计算属性 -->
+    <ul v-else-if="filteredEvents.length" class="event-list">
       <RouterLink
-      v-for="event in store.events"
+      v-for="event in filteredEvents"
       :key="event.id"
       :to="`/admin/events/${event.id}/products`"
       custom
@@ -24,48 +41,31 @@
           <span class="status-badge" :class="statusClass(event.status)">
             {{ event.status }}
           </span>
-          <!-- 【新增】状态操作按钮 -->
           <div class="status-actions">
-            <button 
-              v-if="event.status === '未进行'" 
-              @click.stop="changeStatus(event.id, '进行中')" 
-              class="action-btn"
-            >
-              ► 开始
-            </button>
-            <button 
-              v-if="event.status === '进行中'" 
-              @click.stop="changeStatus(event.id, '已结束')" 
-              class="action-btn"
-            >
-              ■ 结束
-            </button>
-            <button v-if="event.status === '已结束'"
-              @click.stop="changeStatus(event.id,'未进行')
-              " class="action-btn">
-              ► 重新开始
-            </button>
-            <!-- 已结束的展会没有操作 -->
-            <button @click.stop="openEditModal(event)" class="action-btn edit-btn">
-              编辑
-            </button>
+            <button v-if="event.status === '未进行'" @click.stop="changeStatus(event.id, '进行中')" class="action-btn">► 开始</button>
+            <button v-if="event.status === '进行中'" @click.stop="changeStatus(event.id, '已结束')" class="action-btn">■ 结束</button>
+            <button v-if="event.status === '已结束'" @click.stop="changeStatus(event.id,'未进行')" class="action-btn">► 重新开始</button>
+            <button @click.stop="openEditModal(event)" class="action-btn edit-btn">编辑</button>
+            <button @click.stop="confirmDelete(event.id)" class="action-btn delete-btn">删除</button>
           </div>
         </div>
       </li>
       </RouterLink>
     </ul>
 
-    <p v-else>还没有任何展会，请在上方创建一个。</p>
+    <!-- 【修改】处理“无搜索结果”和“无任何展会”两种情况 -->
+    <p v-else-if="store.events.length && !filteredEvents.length" class="no-results-message">
+      没有找到符合筛选条件的展会。
+    </p>
+    <p v-else>
+      还没有任何展会，请在上方创建一个。
+    </p>
 
 
-        <!-- 【新增】编辑模态框 -->
+    <!-- 编辑模态框 (保持不变) -->
     <AppModal :show="isEditModalVisible" @close="closeEditModal">
-      <template #header>
-        <h3>编辑展会</h3>
-      </template>
-      <template #body>
-        <EditEventForm v-if="selectedEvent" ref="editForm" :event="selectedEvent" />
-      </template>
+      <template #header><h3>编辑展会</h3></template>
+      <template #body><EditEventForm v-if="selectedEvent" ref="editForm" :event="selectedEvent" /></template>
       <template #footer>
         <button type="button" class="btn" @click="closeEditModal">取消</button>
         <button type="button" class="btn btn-primary" @click="handleUpdateEvent">保存更改</button>
@@ -75,13 +75,55 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'; // 【新增】导入 ref
+import { onMounted, ref, computed } from 'vue';
 import { useEventStore } from '@/stores/eventStore';
 import AppModal from '@/components/shared/AppModal.vue';
 import EditEventForm from '@/components/event/EditEventForm.vue';
 import { RouterLink } from 'vue-router';
+
 const store = useEventStore();
 const updatingStatusId = ref(null);
+
+// =======================================================
+// 【新增】搜索和过滤相关的状态
+// =======================================================
+const searchName = ref('');
+const dateRangeStart = ref('');
+const dateRangeEnd = ref('');
+const filteredEvents = computed(() => {
+  // 从原始列表开始
+  let events = store.events;
+
+  // 1. 按名称过滤
+  if (searchName.value.trim()) {
+    const lowerCaseQuery = searchName.value.toLowerCase();
+    events = events.filter(event =>
+      event.name.toLowerCase().includes(lowerCaseQuery)
+    );
+  }
+
+  // 2. 按开始日期过滤
+  if (dateRangeStart.value) {
+    events = events.filter(event => new Date(event.date) >= new Date(dateRangeStart.value));
+  }
+
+  // 3. 按结束日期过滤
+  if (dateRangeEnd.value) {
+    // 创建一个 Date 对象并设置到当天的最后一刻，以确保包含选定的结束日期
+    const endDate = new Date(dateRangeEnd.value);
+    endDate.setHours(23, 59, 59, 999);
+    events = events.filter(event => new Date(event.date) <= endDate);
+  }
+
+  return events;
+});
+
+// 【新增】清空所有筛选条件的函数
+function clearFilters() {
+  searchName.value = '';
+  dateRangeStart.value = '';
+  dateRangeEnd.value = '';
+}
 
 // 【新增】编辑模态框相关的状态
 const isEditModalVisible = ref(false);
@@ -99,7 +141,22 @@ const statusClass = (status) => {
     'status-upcoming': status === '未进行',
   };
 };
-
+async function confirmDelete(eventId) {
+  // 弹出浏览器原生确认框
+  if (window.confirm('您确定要删除这个展会吗？此操作无法撤销。')) {
+    try {
+      // 调用 store 中的 deleteEvent 方法执行删除操作
+      // 您需要在 eventStore.js 中实现 deleteEvent 方法，
+      // 该方法会向后端发送 DELETE 请求。
+      await store.deleteEvent(eventId);
+      // 可选：删除成功后显示提示
+      // alert('展会已删除');
+    } catch (error) {
+      // 显示错误信息
+      alert(error.message || '删除失败，请稍后再试。');
+    }
+  }
+}
 // 【新增】处理状态变更的函数
 async function changeStatus(eventId, newStatus) {
   // 防止重复点击
@@ -150,30 +207,97 @@ async function handleUpdateEvent() {
 </script>
 
 <style scoped>
-/* ... 此前已有的样式保持不变 ... */
+.event-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* 每个卡片为独立长条 */
 .event-card {
-  /* ... */
-  transition: opacity 0.3s; /* 添加一个过渡效果 */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;     /* 卡片之间的间距 */
+  box-shadow: 0 6px 10px rgba(0,0,0,0.04);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: default;         /* clickable 类会改为 pointer */
+  min-height: 72px;     /* 保持卡片高度一致 */
 }
-/* 【新增】正在更新的卡片的样式 */
-.event-card.updating {
-  opacity: 0.5;
-  pointer-events: none; /* 防止在更新时进行其他操作 */
+
+/* 保持原有 clickable 行为（整行可点击） */
+.event-card.clickable {
+  cursor: pointer;
 }
+.event-card.clickable:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(16,24,40,0.10);
+}
+/* 左侧信息区域占满剩余空间 */
+.event-info {
+  flex: 1 1 auto;
+  min-width: 0;            /* 保证文本可以正确换行 */
+}
+.event-info h3 {
+  margin: 0 0 6px 0;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+.event-info p {
+  margin: 0;
+  color: var(--secondary-text-color, #888);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+/* 右侧状态与操作区固定宽度，垂直居中 */
 .event-status {
+  flex: 0 0 240px;         /* 根据需要调整宽度 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
   text-align: right;
 }
+
+/* 状态徽章样式 */
+.status-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--primary-text-color);
+  border: 1px solid transparent;
+}
+
+/* 状态颜色类（保留现有类名） */
+.status-ongoing { background: rgba(255, 223, 87, 0.12); border-color: rgba(255, 223, 87, 0.25); }
+.status-finished { background: rgba(108, 117, 125, 0.08); border-color: rgba(108, 117, 125, 0.18); }
+.status-upcoming { background: rgba(3,218,198,0.08); border-color: rgba(3,218,198,0.18); }
+
 .status-actions {
   margin-top: 0.5rem;
+  /* 【新增】让按钮之间有一点间距 */
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 .action-btn {
   background: none;
   border: 1px solid var(--primary-text-color);
   color: var(--primary-text-color);
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 .action-btn:hover {
   background-color: var(--primary-text-color);
@@ -186,5 +310,73 @@ async function handleUpdateEvent() {
 .event-card.clickable:hover {
   background-color: rgba(3, 218, 198, 0.05);
   border-color: rgba(3, 218, 198, 0.3);
+}
+.delete-btn {
+  border-color: #dc3545; /* 红色边框 */
+  color: #dc3545;       /* 红色文字 */
+}
+
+.delete-btn:hover {
+  background-color: #dc3545; /* 悬停时红色背景 */
+  color: white;              /* 悬停时白色文字 */
+}
+.search-container {
+  background-color: var(--card-bg-color);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-wrap: wrap; /* 在小屏幕上换行 */
+  gap: 1rem;
+  align-items: flex-end; /* 让元素底部对齐 */
+}
+
+.search-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-grow: 1; /* 让组占据可用空间 */
+}
+
+.search-group label {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.search-group input[type="text"],
+.search-group input[type="date"] {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  color: var(--primary-text-color);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-range-inputs span {
+  color: #aaa;
+}
+
+.btn-secondary {
+  background-color: #555;
+  border-color: #555;
+  color: white;
+  padding: 8px 12px;
+  height: fit-content; /* 让按钮高度与输入框匹配 */
+}
+.btn-secondary:hover {
+  background-color: #666;
+}
+.no-results-message {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
 }
 </style>

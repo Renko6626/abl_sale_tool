@@ -140,3 +140,18 @@ def update_event(event_id):
     except Exception as e:
         db.session.rollback()
         return jsonify(error=str(e)), 500
+
+#删除展会
+@sale_bp.route('/api/events/<int:event_id>', methods=['DELETE'])
+def delete_event(event_id):
+    event = Event.query.get_or_404(event_id)
+    try:
+        # 删除相关的二维码图片文件
+        delete_file(event.qrcode_url)
+        
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify(message="Event deleted"), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=str(e)), 500

@@ -19,7 +19,7 @@
     </div>
     <ImageUploader
       label="展会收款码"
-      :initial-image-url="editableEvent.payment_qr_code_url"
+      :initial-image-url="editableEvent.qrcode_url"
       v-model="newQrCodeFile"
       @image-removed="handleImageRemoval"
     />

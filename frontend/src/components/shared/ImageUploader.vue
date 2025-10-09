@@ -21,7 +21,7 @@
       </div>
       <!-- 2. 初始图片显示 (如果没有选择新图片) -->
       <div v-else-if="initialImageUrl" class="image-preview-box">
-        <img :src="backendUrl + initialImageUrl" alt="当前图片" class="image-preview" />
+        <img :src="initialImageUrl" alt="当前图片" class="image-preview" />
         <span class="preview-tag">当前图片</span>
       </div>
       <!-- 3. 无图提示 -->

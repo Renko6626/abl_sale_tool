@@ -76,13 +76,25 @@ export const useEventStore = defineStore('event', () => {
       throw new Error(err.response?.data?.error || '更新展会信息失败。');
     }
   }
+  async function deleteEvent(eventId) {
+    try {
+      await api.delete(`/events/${eventId}`);
+      // 删除成功后，从本地 events 数组中移除该展会
+      events.value = events.value.filter(e => e.id !== eventId);
+    } catch (err) {
+      console.error(err);
+      throw new Error(err.response?.data?.error || '删除展会失败，请重试。');
+    }
+  }
+
   return {
     events,
     isLoading,
     error,
     fetchEvents,
     createEvent,
-    updateEventStatus, // 【新增】将新函数导出
+    updateEventStatus, 
     updateEvent,
+    deleteEvent, // 【新增】导出删除函数
   };
 });
