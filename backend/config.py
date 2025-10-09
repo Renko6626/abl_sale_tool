@@ -1,8 +1,8 @@
 import os
-
+from dotenv import load_dotenv
 # 获取项目根目录的路径
 basedir = os.path.abspath(os.path.dirname(__file__))
-
+load_dotenv()
 class Config:
     # 设置一个密钥，用于保护 session 和其他安全相关的事务
     UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')

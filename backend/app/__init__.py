@@ -72,6 +72,41 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     CORS(app)
 
+    # --- 数据库初始化（确保首次运行能创建 SQLite 文件和数据表） ---
+    try:
+        with app.app_context():
+            db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+
+            # 如果使用 SQLite，确保数据库文件目录存在
+            if db_uri.startswith('sqlite:///'):
+                db_path = db_uri.replace('sqlite:///', '', 1)
+                db_dir = os.path.dirname(db_path)
+                if db_dir and not os.path.exists(db_dir):
+                    os.makedirs(db_dir, exist_ok=True)
+
+            # 优先使用 Alembic/Flask-Migrate 执行迁移（如果 migrations 目录存在），否则使用 create_all()
+            try:
+                migrations_dir = os.path.join(os.path.dirname(__file__), '..', 'migrations')
+                # 路径可能是相对的，归一化一下
+                migrations_dir = os.path.abspath(migrations_dir)
+                if os.path.isdir(migrations_dir):
+                    app.logger.info('migrations found at %s, attempting to upgrade database...', migrations_dir)
+                    from flask_migrate import upgrade as _upgrade
+                    _upgrade()
+                else:
+                    app.logger.info('no migrations directory found, creating tables with db.create_all()')
+                    db.create_all()
+            except Exception as e:
+                # 如果迁移失败，退回到 create_all 保证表至少被创建
+                app.logger.exception('database migration/upgrade failed, falling back to create_all: %s', e)
+                try:
+                    db.create_all()
+                except Exception:
+                    app.logger.exception('db.create_all() also failed')
+    except Exception:
+        # 捕获任意初始化阶段的异常，避免阻塞应用启动
+        app.logger.exception('unexpected error during database initialization')
+
     # --- 蓝图注册 ---
     from .sale_system import sale_bp
     app.register_blueprint(sale_bp, url_prefix='/sale')

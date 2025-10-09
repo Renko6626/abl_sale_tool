@@ -24,3 +24,6 @@ package-lock.json
 .vscode/
 .idea/
 *.swp
+
+#backend里面的logs文件夹
+backend/logs/

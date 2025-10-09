@@ -1,6 +1,6 @@
 const path = require('path');
 
-const projectName = 'abl-booth-tool';
+const projectName = process.env.PM2_APP_NAME || 'abl-booth-tool';
 const backendDir = __dirname;
 // 确保 Socket 路径在项目内部
 const runDir = path.join(backendDir, 'run'); 

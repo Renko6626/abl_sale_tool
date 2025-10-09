@@ -62,18 +62,24 @@
          />
       </div>
     </main>
+    <<audio ref="audioRef" src="/assets/notify.wav" preload="auto"></audio>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+// ...existing imports...
 
-import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useOrderStore } from '@/stores/orderStore';
 import { useEventStore } from '@/stores/eventStore';
 // 【步骤 1】导入 LiveStats 组件和它需要的 store
 import { useEventDetailStore } from '@/stores/eventDetailStore'; 
 import LiveStats from '@/components/vendor/LiveStats.vue';
 import OrderCard from '@/components/order/OrderCard.vue';
+
+const audioRef = ref(null);
+const lastPendingCount = ref(0);
+
 
 const props = defineProps({
   id: { type: String, required: true }
@@ -97,7 +103,8 @@ async function manualRefresh() {
   // 【步骤 3】手动刷新时，也需要刷新库存数据
   await Promise.all([
     store.pollPendingOrders(),
-    eventDetailStore.fetchProductsForEvent(props.id) 
+    eventDetailStore.fetchProductsForEvent(props.id),
+    store.fetchCompletedOrders(),
   ]);
   isRefreshing.value = false;
 }
@@ -106,7 +113,8 @@ async function completeOrder(orderId) {
   try {
     await store.markOrderAsCompleted(orderId);
     // 【步骤 4】订单完成后，刷新库存数据以更新 LiveStats
-    await eventDetailStore.fetchProductsForEvent(props.id); 
+    await eventDetailStore.fetchProductsForEvent(props.id);
+    await store.fetchCompletedOrders();
   } catch (error) {
     alert(error.message);
   }
@@ -129,14 +137,23 @@ function switchToCompletedTab() {
 
 onMounted(() => {
   if (eventStore.events.length === 0) {
-      eventStore.fetchEvents();
+    eventStore.fetchEvents();
   }
-  
-  // 【步骤 5】组件加载时，同时为两个 store 设置 eventId 并获取初始数据
-  store.setActiveEvent(props.id); // 这会开始订单轮询
-  eventDetailStore.fetchProductsForEvent(props.id); // 这会获取初始库存
+  store.setActiveEvent(props.id);
+  eventDetailStore.fetchProductsForEvent(props.id);
+  lastPendingCount.value = store.pendingOrders.length;
 });
 
+watch(
+  () => store.pendingOrders.length,
+  (newCount, oldCount) => {
+    if (newCount > oldCount && audioRef.value) {
+      audioRef.value.currentTime = 0;
+      audioRef.value.play();
+    }
+    lastPendingCount.value = newCount;
+  }
+);
 onUnmounted(() => {
   store.stopPolling();
 });

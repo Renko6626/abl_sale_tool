@@ -107,7 +107,6 @@
 
 ### 1. 环境要求
 - Ubuntu 20.04+（建议）
-- 具备 sudo 权限
 - 域名已解析到服务器
 
 ### 2. 配置 deploy.sh
@@ -123,7 +122,7 @@ EMAIL="your@email.com"  # 替换为你的邮箱,这用于给certbot配置https�
 ### 3. 运行一键部署脚本
 ```bash
 chmod +x deploy.sh
-sudo ./deploy.sh
+./deploy.sh
 ```
 脚本会自动完成：
 - 安装 Nginx、Python3、Git、Curl

@@ -105,6 +105,11 @@ deactivate
 mkdir -p "${BACKEND_DIR}/logs"
 mkdir -p "${RUN_DIR}"
 
+# 确保项目内所有文件和目录都属于当前运行脚本的用户。
+echo "--> 正在修正项目文件所有权，确保当前用户 (${USER}) 拥有权限..."
+sudo chown -R "${USER}:${USER}" "${PROJECT_BASE_DIR}"
+sudo chown -R "${USER}:${USER}" "${RUN_DIR}"
+sudo chown -R "${USER}:${USER}" "${BACKEND_DIR}/logs"
 # 5. 使用 PM2 启动/重启后端应用
 echo "--> 正在使用 PM2 部署后端应用..."
 cd "${BACKEND_DIR}"
@@ -114,7 +119,7 @@ PM2_PATH=$(command -v pm2)
 
 # 使用 startOrRestart 来更新应用，如果已存在则重启，不存在则启动
 # 确保你的 ecosystem.config.js 已经修正，不再包含 --env-file 参数，并且 bind 的路径是动态生成的
-$PM2_PATH startOrRestart ecosystem.config.js --env production
+PM2_APP_NAME=${PROJECT_NAME} $PM2_PATH startOrRestart ecosystem.config.js --env production
 
 # 设置 PM2 开机自启
 # 使用 `sudo env PATH=$PATH...` 的技巧让 root 用户能找到当前用户的 pm2

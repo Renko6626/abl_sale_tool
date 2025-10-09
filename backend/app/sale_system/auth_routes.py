@@ -21,7 +21,7 @@ def login():
             # 管理员登录成功，赋予 admin 角色
             return jsonify(message="Admin login successful", role="admin"), 200
         else:
-            return jsonify(error="Invalid admin password"), 401
+            return jsonify(error=f"Invalid admin password :("), 401
 
     # --- 2. 摊主登录 ---
     if role == 'vendor':
