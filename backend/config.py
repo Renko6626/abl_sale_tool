@@ -9,6 +9,14 @@ class Config:
     STATIC_FOLDER = os.path.join(basedir, 'static')
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'a-hard-to-guess-string'
 
+    # JWT 配置
+    JWT_SECRET = os.environ.get('JWT_SECRET') or SECRET_KEY
+    JWT_ALGORITHM = 'HS256'
+    JWT_ACCESS_EXPIRES_MIN = int(os.environ.get('JWT_ACCESS_EXPIRES_MIN', 24 * 60))  # 默认 24h
+    JWT_COOKIE_NAME = os.environ.get('JWT_COOKIE_NAME', 'access_token')
+    JWT_COOKIE_SECURE = os.environ.get('JWT_COOKIE_SECURE', 'false').lower() == 'true'
+    JWT_COOKIE_SAMESITE = os.environ.get('JWT_COOKIE_SAMESITE', 'Lax')
+
     ADMIN_PASSWORD=os.environ.get('ADMIN_PASSWORD') or '1919810'
     VENDOR_PASSWORD=os.environ.get('VENDOR_PASSWORD') or '114514'
 

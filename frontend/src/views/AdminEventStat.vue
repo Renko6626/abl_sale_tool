@@ -21,10 +21,23 @@
     <div v-else-if="statStore.error" class="error-message">
       <p><strong>[ 后端数据库寄了！ ]</strong></p>
       <p>{{ statStore.error }}</p>
-      <button @click="statStore.fetchStats" class="btn btn-secondary">重新建立连接</button>
+      <button @click="applyFilters" class="btn btn-secondary">重新建立连接</button>
     </div>
 
     <div v-else-if="statStore.stats" class="stats-content">
+      <StatFilters
+        :product-options="productOptions"
+        :selected-product="selectedProduct"
+        :start-date="startDate"
+        :end-date="endDate"
+        :interval-minutes="intervalMinutes"
+        @update:selectedProduct="val => (selectedProduct = val)"
+        @update:startDate="val => (startDate = val)"
+        @update:endDate="val => (endDate = val)"
+        @update:intervalMinutes="val => (intervalMinutes = val)"
+        @change="applyFilters"
+      />
+
       <!-- 关键数据总览 -->
       <div class="summary-cards">
         <div class="card">
@@ -39,6 +52,22 @@
           <span class="label">销售品类数</span>
           <span class="value">{{ productVarietyCount }}</span>
         </div>
+      </div>
+
+      <!-- 销售趋势图 -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>销售额趋势</h3>
+          <span v-if="statStore.stats.timeseries?.length">{{ chartSubtitle }}</span>
+        </div>
+        <SalesLineChart
+          v-if="statStore.stats.timeseries?.length"
+          :series="statStore.stats.timeseries"
+          :width="chartWidth"
+          :height="chartHeight"
+          :padding="padding"
+        />
+        <p v-else class="no-data">// 暂无趋势数据</p>
       </div>
 
       <!-- 销售详情表格 -->
@@ -73,30 +102,70 @@
 </template>
 
 <script setup>
-// ... 您的 <script setup> 内容保持不变 ...
-import { onMounted, watch, computed } from 'vue';
+import { onMounted, watch, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEventStatStore } from '@/stores/eventStatStore';
+import SalesLineChart from '@/components/stats/SalesLineChart.vue';
+import StatFilters from '@/components/stats/StatFilters.vue';
 
 const route = useRoute();
 const statStore = useEventStatStore();
+const selectedProduct = ref('');
+const startDate = ref('');
+const endDate = ref('');
+const intervalMinutes = ref(60);
+const chartWidth = 800;
+const chartHeight = 320;
+const padding = 48;
 
 const pageTitle = computed(() => statStore.stats?.event_name ? `${statStore.stats.event_name} - 数据统计` : '数据统计');
 const totalItemsSold = computed(() => statStore.stats?.summary.reduce((sum, item) => sum + item.total_quantity, 0) || 0);
 const productVarietyCount = computed(() => statStore.stats?.summary.length || 0);
+const productOptions = computed(() => {
+  const summary = statStore.stats?.summary || [];
+  const unique = new Map();
+  summary.forEach(item => {
+    if (!unique.has(item.product_code)) {
+      unique.set(item.product_code, { code: item.product_code, name: item.product_name });
+    }
+  });
+  return Array.from(unique.values());
+});
+
+
+const chartSubtitle = computed(() => {
+  const parts = [];
+  if (selectedProduct.value) parts.push(`制品 ${selectedProduct.value}`);
+  if (startDate.value) parts.push(`自 ${startDate.value}`);
+  if (endDate.value) parts.push(`至 ${endDate.value}`);
+  parts.push(intervalMinutes.value === 30 ? '每 30 分钟' : '每小时');
+  return parts.join(' · ');
+});
+
 
 function formatCurrency(value) {
   if (typeof value !== 'number') return '¥ 0.00';
   return `¥ ${value.toFixed(2)}`;
 }
 
+// Chart implementation moved to SalesLineChart component
+
+async function applyFilters() {
+  await statStore.fetchStats({
+    productCode: selectedProduct.value,
+    startDate: startDate.value,
+    endDate: endDate.value,
+    intervalMinutes: intervalMinutes.value,
+  });
+}
+
 onMounted(() => {
   const eventId = route.params.id;
-  if (eventId) statStore.setActiveEvent(eventId);
+  if (eventId) statStore.setActiveEvent(eventId, { productCode: selectedProduct.value, startDate: startDate.value, endDate: endDate.value, intervalMinutes: intervalMinutes.value });
 });
 
 watch(() => route.params.id, (newEventId) => {
-  if (newEventId) statStore.setActiveEvent(newEventId);
+  if (newEventId) statStore.setActiveEvent(newEventId, { productCode: selectedProduct.value, startDate: startDate.value, endDate: endDate.value, intervalMinutes: intervalMinutes.value });
 });
 </script>
 
@@ -190,6 +259,118 @@ h1 {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 3rem;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filter-group label {
+  color: var(--secondary-text-color);
+  font-size: 0.9rem;
+}
+
+.filter-group select,
+.filter-group input[type="date"] {
+  background: var(--card-bg-color);
+  color: var(--primary-text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.65rem 0.75rem;
+}
+
+.chart-card {
+  background-color: var(--card-bg-color);
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1rem;
+  color: var(--primary-text-color);
+}
+
+.chart-wrapper {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+}
+
+.line {
+  fill: none;
+  stroke: var(--accent-color);
+  stroke-width: 2.5;
+}
+
+.area {
+  fill: url(#revenueGradient);
+  stroke: none;
+}
+
+.points circle {
+  fill: var(--accent-color);
+  stroke: var(--card-bg-color);
+  stroke-width: 2;
+}
+
+.points text {
+  fill: var(--primary-text-color);
+  font-size: 0.75rem;
+}
+
+.grid-lines line {
+  stroke: rgba(255,255,255,0.15);
+  stroke-dasharray: 4 4;
+  stroke-width: 1;
+}
+
+.y-ticks text {
+  fill: var(--primary-text-color);
+  font-size: 0.75rem;
+}
+
+.chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, -120%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+
+.tooltip-date {
+  font-size: 0.8rem;
+  margin-bottom: 0.2rem;
+  color: var(--secondary-text-color);
+}
+
+.tooltip-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-text-color);
 }
 
 .card {

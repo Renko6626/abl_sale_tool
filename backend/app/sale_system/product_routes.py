@@ -4,6 +4,7 @@ from . import sale_bp
 from .. import db
 from ..models import Product, Event, MasterProduct
 from werkzeug.utils import secure_filename
+from ..auth_utils import jwt_required
 # ... get_products_for_event 函数保持不变，但其内部 to_dict() 的行为已改变 ...
 @sale_bp.route('/api/events/<int:event_id>/products', methods=['GET'])
 def get_products_for_event(event_id):
@@ -13,7 +14,8 @@ def get_products_for_event(event_id):
 
 # API: 通过编号为展会添加商品 (逻辑完全重写)
 @sale_bp.route('/api/events/<int:event_id>/products', methods=['POST'])
-def add_product_to_event(event_id):
+@jwt_required(roles={'admin', 'vendor'}, require_event_match=True)
+def add_product_to_event(event_id, jwt_payload=None):
     event = Event.query.get_or_404(event_id)
     data = request.get_json()
 
@@ -48,8 +50,13 @@ def add_product_to_event(event_id):
 
 # API: 更新展会商品的库存或价格 (逻辑简化)
 @sale_bp.route('/api/products/<int:product_id>', methods=['PUT'])
-def update_product(product_id):
+@jwt_required(roles={'admin', 'vendor'})
+def update_product(product_id, jwt_payload=None):
     product = Product.query.get_or_404(product_id)
+    # Vendor只能更新自己的展会商品
+    if jwt_payload and jwt_payload.get('role') == 'vendor' and jwt_payload.get('access') != 'all':
+        if product.event_id != jwt_payload.get('event_id'):
+            return jsonify(error="Forbidden: event not authorized"), 403
     data = request.get_json()
     try:
         if 'price' in data:
@@ -63,8 +70,12 @@ def update_product(product_id):
 
 # ... delete_product 函数保持不变 ...
 @sale_bp.route('/api/products/<int:product_id>', methods=['DELETE'])
-def delete_product(product_id):
+@jwt_required(roles={'admin', 'vendor'})
+def delete_product(product_id, jwt_payload=None):
     product = Product.query.get_or_404(product_id)
+    if jwt_payload and jwt_payload.get('role') == 'vendor' and jwt_payload.get('access') != 'all':
+        if product.event_id != jwt_payload.get('event_id'):
+            return jsonify(error="Forbidden: event not authorized"), 403
     db.session.delete(product)
     db.session.commit()
     return '', 204

@@ -6,6 +6,7 @@ from PIL import Image
 from . import sale_bp
 from .. import db
 from ..models import MasterProduct
+from ..auth_utils import jwt_required
 
 # --- 配置 ---
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -75,7 +76,8 @@ def get_master_products():
     return jsonify([p.to_dict() for p in products])
 
 @sale_bp.route('/api/master-products/<int:mp_id>/status', methods=['PUT'])
-def update_master_product_status(mp_id):
+@jwt_required(roles={'admin'})
+def update_master_product_status(mp_id, jwt_payload=None):
     mp = MasterProduct.query.get_or_404(mp_id)
     data = request.get_json()
     if 'is_active' not in data or not isinstance(data['is_active'], bool):
@@ -85,7 +87,8 @@ def update_master_product_status(mp_id):
     return jsonify(mp.to_dict()), 200
 
 @sale_bp.route('/api/master-products', methods=['POST'])
-def create_master_product():
+@jwt_required(roles={'admin'})
+def create_master_product(jwt_payload=None):
     data = request.form
     required = ['product_code', 'name', 'default_price']
     if not all(field in data for field in required):
@@ -120,7 +123,8 @@ def create_master_product():
 
 # 【已修改】API: 更新一个主商品，支持图片移除和替换
 @sale_bp.route('/api/master-products/<int:mp_id>', methods=['POST', 'PUT'])
-def update_master_product(mp_id):
+@jwt_required(roles={'admin'})
+def update_master_product(mp_id, jwt_payload=None):
     mp = MasterProduct.query.get_or_404(mp_id)
     data = request.form
 

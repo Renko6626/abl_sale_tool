@@ -3,6 +3,7 @@ from datetime import datetime
 from . import sale_bp
 from .. import db
 from ..models import Event
+from ..auth_utils import jwt_required
 import uuid
 from werkzeug.utils import secure_filename
 import os
@@ -46,7 +47,8 @@ def get_event(event_id):
     return jsonify(event.to_dict()), 200
 
 @sale_bp.route('/api/events', methods=['POST'])
-def create_event():
+@jwt_required(roles={'admin'})
+def create_event(jwt_payload=None):
     data = request.form
     if not data or 'name' not in data or 'date' not in data:
         return jsonify(error="Missing required fields: name and date"), 400
@@ -82,7 +84,8 @@ def create_event():
         return jsonify(error=str(e)), 500
 
 @sale_bp.route('/api/events/<int:event_id>/status', methods=['PUT'])
-def update_event_status(event_id):
+@jwt_required(roles={'admin'})
+def update_event_status(event_id, jwt_payload=None):
     data = request.get_json()
     new_status = data.get('status')
 
@@ -98,7 +101,8 @@ def update_event_status(event_id):
 
 # 【已修改】API: 更新展会信息，现在支持图片上传
 @sale_bp.route('/api/events/<int:event_id>', methods=['PUT', 'POST'])
-def update_event(event_id):
+@jwt_required(roles={'admin'})
+def update_event(event_id, jwt_payload=None):
     event = Event.query.get_or_404(event_id)
     # 【修改】从 request.form 获取文本数据
     data = request.form
@@ -143,7 +147,8 @@ def update_event(event_id):
 
 #删除展会
 @sale_bp.route('/api/events/<int:event_id>', methods=['DELETE'])
-def delete_event(event_id):
+@jwt_required(roles={'admin'})
+def delete_event(event_id, jwt_payload=None):
     event = Event.query.get_or_404(event_id)
     try:
         # 删除相关的二维码图片文件

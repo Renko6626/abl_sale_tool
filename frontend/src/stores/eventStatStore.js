@@ -25,16 +25,16 @@ export const useEventStatStore = defineStore('eventStat', () => {
   // --- Actions ---
   // ... (您的 setActiveEvent 和 fetchStats 函数保持不变) ...
 
-  async function setActiveEvent(eventId) {
-    if (activeEventId.value === eventId) return;
+  async function setActiveEvent(eventId, filters = {}) {
+    if (activeEventId.value === eventId && !filters.forceReload) return;
     activeEventId.value = eventId;
     stats.value = null;
     if (eventId) {
-      await fetchStats();
+      await fetchStats(filters);
     }
   }
 
-  async function fetchStats() {
+  async function fetchStats({ productCode, startDate, endDate, intervalMinutes } = {}) {
     if (!activeEventId.value) {
       error.value = "没有提供展会ID。";
       return;
@@ -43,7 +43,14 @@ export const useEventStatStore = defineStore('eventStat', () => {
     error.value = null;
     try {
       // api.get 会自动使用正确的 baseURL，所以这里不用变
-      const response = await api.get(`/events/${activeEventId.value}/sales_summary`);
+      const response = await api.get(`/events/${activeEventId.value}/sales_summary`, {
+        params: {
+          product_code: productCode || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          interval_minutes: intervalMinutes || undefined,
+        },
+      });
       stats.value = response.data;
     } catch (err) {
       console.error("获取销售统计失败:", err);

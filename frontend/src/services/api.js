@@ -1,4 +1,5 @@
 import axios from 'axios';
+import router from '@/router';
 
 // 根据环境配置API基础路径
 export const getApiBaseUrl = () => {
@@ -40,6 +41,13 @@ apiClient.interceptors.response.use(
   (error) => {
     if (import.meta.env.DEV) {
       console.error(`❌ API错误: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.status, error.message);
+    }
+
+    if (error.response && [401, 403].includes(error.response.status)) {
+      // 清理本地登录状态并跳转到登录页
+      sessionStorage.removeItem('user');
+      const target = error.response.status === 401 ? '/login/admin' : router.currentRoute.value.meta?.role === 'vendor' ? '/login/vendor' : '/login/admin';
+      router.push(target);
     }
     return Promise.reject(error);
   }

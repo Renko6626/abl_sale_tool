@@ -1,4 +1,6 @@
 from flask import request, jsonify, send_file
+from datetime import datetime, timedelta
+from collections import defaultdict
 from . import sale_bp
 from .. import db
 from ..models import Order, OrderItem, Product, Event, MasterProduct
@@ -6,6 +8,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 import pandas as pd
 import io
+from ..auth_utils import jwt_required
 VALID_ORDER_STATUSES = ['pending', 'completed', 'cancelled']
 
 
@@ -14,7 +17,8 @@ VALID_ORDER_STATUSES = ['pending', 'completed', 'cancelled']
 # API: 获取指定展会的订单列表
 # 路径: GET /sale/api/events/<int:event_id>/orders?status=pending
 @sale_bp.route('/api/events/<int:event_id>/orders', methods=['GET'])
-def get_orders_for_event(event_id):
+@jwt_required(roles={'admin', 'vendor'}, require_event_match=True)
+def get_orders_for_event(event_id, jwt_payload=None):
     Event.query.get_or_404(event_id)
     status_filter = request.args.get('status')
     query = Order.query.filter_by(event_id=event_id)
@@ -26,7 +30,8 @@ def get_orders_for_event(event_id):
 # API: 更新订单状态 (摊主操作)
 # 【核心改动】API: 更新指定展会下的特定订单状态
 @sale_bp.route('/api/events/<int:event_id>/orders/<int:order_id>/status', methods=['PUT'])
-def update_order_status_for_event(event_id, order_id):
+@jwt_required(roles={'admin', 'vendor'}, require_event_match=True)
+def update_order_status_for_event(event_id, order_id, jwt_payload=None):
     data = request.get_json()
     new_status = data.get('status')
 
@@ -123,7 +128,7 @@ def create_order(event_id):
         return jsonify(error="An internal server error occurred."), 500
 # --- 销售总结 API (新增功能) ---
 from sqlalchemy import func
-def _get_sales_summary_data(event_id):
+def _get_sales_summary_data(event_id, product_code=None, start_date=None, end_date=None, interval_minutes=60):
     """
     内部辅助函数，负责查询数据库并生成销售总结的原始数据。
     【已更新】此函数现在会通过 Product JOIN MasterProduct 来获取核心商品信息。
@@ -137,20 +142,29 @@ def _get_sales_summary_data(event_id):
     # 由于 product.current_stock 是一个计算属性（通常是 @property），不能直接在 SQL 查询中选出，
     # 需要先查出 Product.id，然后在循环中用 ORM 实例获取 current_stock。
     sales_details_query = db.session.query(
-        MasterProduct.product_code,  # <--- 从 MasterProduct 获取
-        MasterProduct.name,          # <--- 从 MasterProduct 获取
-        Product.price,               # <--- 价格仍然是展会特定的
-        Product.initial_stock,       # <--- 初始库存
+        MasterProduct.product_code,
+        MasterProduct.name,
+        Product.price,
+        Product.initial_stock,
         func.sum(OrderItem.quantity).label('total_quantity'),
-        Product.id                   # <--- 加入 Product.id 以便后续查 current_stock
-    ).join(Order, OrderItem.order_id == Order.id)\
-     .join(Product, OrderItem.product_id == Product.id)\
-     .join(MasterProduct, Product.master_product_id == MasterProduct.id) \
-     .filter(Order.event_id == event_id)\
-     .filter(Order.status == 'completed')\
-     .group_by(MasterProduct.product_code, MasterProduct.name, Product.price, Product.initial_stock, Product.id)\
-     .order_by(MasterProduct.name)\
-     .all()
+        Product.id
+    ).join(Order, OrderItem.order_id == Order.id)
+    sales_details_query = sales_details_query.join(Product, OrderItem.product_id == Product.id)
+    sales_details_query = sales_details_query.join(MasterProduct, Product.master_product_id == MasterProduct.id)
+    sales_details_query = sales_details_query.filter(Order.event_id == event_id).filter(Order.status == 'completed')
+    if product_code:
+        sales_details_query = sales_details_query.filter(MasterProduct.product_code == product_code)
+    if start_date:
+        sales_details_query = sales_details_query.filter(func.date(Order.timestamp) >= start_date)
+    if end_date:
+        sales_details_query = sales_details_query.filter(func.date(Order.timestamp) <= end_date)
+    sales_details_query = sales_details_query.group_by(
+        MasterProduct.product_code,
+        MasterProduct.name,
+        Product.price,
+        Product.initial_stock,
+        Product.id,
+    ).order_by(MasterProduct.name).all()
 
     # 2. 将查询结果处理成结构化的字典列表（去重，只添加一次）
     summary_list = []
@@ -170,25 +184,82 @@ def _get_sales_summary_data(event_id):
     # 3. 计算总销售额
     total_revenue = sum(item['total_revenue_per_item'] for item in summary_list)
 
-    # 4. 构造并返回最终的数据字典
+    # 4. 生成时间序列（按时间粒度聚合销售额，默认 60 分钟，可选 30 分钟）
+    interval = interval_minutes if interval_minutes in (30, 60) else 60
+    revenue_rows = db.session.query(
+        Order.timestamp.label('ts'),
+        (OrderItem.quantity * Product.price).label('revenue')
+    ).join(OrderItem, OrderItem.order_id == Order.id)
+    revenue_rows = revenue_rows.join(Product, OrderItem.product_id == Product.id)
+    revenue_rows = revenue_rows.join(MasterProduct, Product.master_product_id == MasterProduct.id)
+    revenue_rows = revenue_rows.filter(Order.event_id == event_id).filter(Order.status == 'completed')
+    if product_code:
+        revenue_rows = revenue_rows.filter(MasterProduct.product_code == product_code)
+    if start_date:
+        revenue_rows = revenue_rows.filter(func.date(Order.timestamp) >= start_date)
+    if end_date:
+        revenue_rows = revenue_rows.filter(func.date(Order.timestamp) <= end_date)
+
+    bucketed = defaultdict(float)
+    for row in revenue_rows.all():
+        ts = row.ts
+        if not ts:
+            continue
+        # 统一转为 UTC+8 显示
+        ts_utc8 = ts + timedelta(hours=8)
+        floored_minute = (ts_utc8.minute // interval) * interval
+        bucket_time = ts_utc8.replace(minute=floored_minute, second=0, microsecond=0)
+        bucketed[bucket_time] += float(row.revenue or 0)
+
+    timeseries = [
+        {"date": bucket.strftime('%Y-%m-%d %H:%M'), "revenue": round(total, 2)}
+        for bucket, total in sorted(bucketed.items())
+    ]
+
+    # 5. 构造并返回最终的数据字典
     return {
         "event_id": event.id,
         "event_name": event.name,
         "total_revenue": round(total_revenue, 2),
-        "summary": summary_list
+        "summary": summary_list,
+        "timeseries": timeseries,
     }
 
 
 @sale_bp.route('/api/events/<int:event_id>/sales_summary', methods=['GET'])
-def get_sales_summary(event_id):
-    sales_data = _get_sales_summary_data(event_id)
+@jwt_required(roles={'admin', 'vendor'}, require_event_match=True)
+def get_sales_summary(event_id, jwt_payload=None):
+    product_code = request.args.get('product_code') or None
+
+    def _parse_date(value):
+        try:
+            return datetime.strptime(value, '%Y-%m-%d').date()
+        except Exception:
+            return None
+
+    start_date = _parse_date(request.args.get('start_date'))
+    end_date = _parse_date(request.args.get('end_date'))
+
+    try:
+        interval_minutes = int(request.args.get('interval_minutes')) if request.args.get('interval_minutes') else 60
+    except ValueError:
+        interval_minutes = 60
+
+    sales_data = _get_sales_summary_data(
+        event_id,
+        product_code=product_code,
+        start_date=start_date,
+        end_date=end_date,
+        interval_minutes=interval_minutes,
+    )
     if sales_data is None:
         return jsonify(error="Event not found."), 404
     return jsonify(sales_data)
 
 # 【重构】API: 下载格式精美的销售总结 Excel 文件 (现在调用辅助函数)
 @sale_bp.route('/api/events/<int:event_id>/sales_summary/download', methods=['GET'])
-def download_sales_summary_excel(event_id):
+@jwt_required(roles={'admin', 'vendor'}, require_event_match=True)
+def download_sales_summary_excel(event_id, jwt_payload=None):
     """
     【已修复】
     生成并提供一份与“境界景观学会出摊标准记录”模板高度相似的 Excel 报告。

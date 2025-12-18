@@ -29,17 +29,18 @@ export const useAuthStore = defineStore('auth', () => {
         const responseData = response.data;
         
         // 2. 根据后端返回的数据，构建并更新前端的用户状态对象
-        let userData = { role: responseData.role };
+        const userData = {
+          role: responseData.role,
+          access: responseData.access || 'all',
+        };
 
-        if (responseData.role === 'vendor') {
-        if (responseData.message.includes('Global') || responseData.message.includes('Admin')) {
-            userData.access = 'all';
-        } else {
-            // 【核心改动】确保 eventId 是数字类型
-            userData.authorizedEventId = responseData.eventId ? parseInt(responseData.eventId, 10) : null;
+        if (responseData.role === 'vendor' && responseData.access === 'event') {
+          userData.authorizedEventId = responseData.eventId ? parseInt(responseData.eventId, 10) : null;
         }
+        if (responseData.role === 'vendor' && responseData.access === 'all') {
+          userData.authorizedEventId = null;
         }
-        
+
         user.value = userData;
         sessionStorage.setItem('user', JSON.stringify(userData));
 

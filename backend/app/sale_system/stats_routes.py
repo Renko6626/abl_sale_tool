@@ -2,13 +2,15 @@ from flask import jsonify
 from . import sale_bp
 from .. import db
 from ..models import Event, Order, OrderItem, Product
+from ..auth_utils import jwt_required
 
 # --- 数据统计 API ---
 
 # API: 获取指定展会的销售统计数据
 # 路径: GET /sale/api/events/<int:event_id>/stats
 @sale_bp.route('/api/events/<int:event_id>/stats', methods=['GET'])
-def get_event_stats(event_id):
+@jwt_required(roles={'admin', 'vendor'}, require_event_match=True)
+def get_event_stats(event_id, jwt_payload=None):
     # 确认展会存在
     event = Event.query.get_or_404(event_id)
 
