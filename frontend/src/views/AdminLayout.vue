@@ -9,14 +9,13 @@
       <!-- 【新增】侧边栏头部，包含 Logo 和切换按钮 -->
       <div class="sidebar-header">
         <h2 v-if="!isSidebarCollapsed">管理后台</h2>
-        <button class="sidebar-toggle" @click="toggleSidebar" aria-label="切换侧边栏">
-          <!-- 根据状态显示不同图标 -->
+        <n-button class="sidebar-toggle" circle size="small" @click="toggleSidebar" aria-label="切换侧边栏">
           <span v-if="isSidebarCollapsed">»</span>
           <span v-else>«</span>
-        </button>
+        </n-button>
       </div>
 
-      <div class="sidebar-content">
+      <n-scrollbar class="sidebar-content">
         <div>
           <nav>
             <RouterLink to="/admin">展会管理</RouterLink>
@@ -46,7 +45,7 @@
             <svg><!-- ... icon ... --></svg>
           </a>
         </div>
-      </div>
+      </n-scrollbar>
     </aside>
     <main class="content">
       <RouterView />
@@ -59,6 +58,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { useEventStore } from '@/stores/eventStore'; 
+import { NButton, NScrollbar } from 'naive-ui';
 
 const route = useRoute();
 const eventStore = useEventStore();

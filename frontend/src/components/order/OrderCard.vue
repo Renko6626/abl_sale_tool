@@ -2,7 +2,7 @@
   <div class="order-card">
     <div class="order-header">
       <h4>订单 #{{ order.id }}</h4>
-      <span class="order-time">{{ formattedTime }}</span>
+      <span class="order-time">{{ formattedTime }} (UTC+8)</span>
     </div>
     
     <!-- 【核心改动】将 <ul> 改为 <div>，并修改内部结构 -->
@@ -27,8 +27,8 @@
       <span class="total-amount">总计: ¥{{ order.total_amount.toFixed(2) }}</span>
       <!-- 【修改】只有在待处理状态下才显示按钮 -->
       <div v-if="!isCompleted" class="button-group">
-        <button class="btn btn-cancel" @click="$emit('cancel', order.id)">取消</button>
-        <button class="btn btn-complete" @click="$emit('complete', order.id)">完成配货</button>
+        <n-button tertiary type="error" size="small" @click="$emit('cancel', order.id)">取消</n-button>
+        <n-button type="primary" size="small" @click="$emit('complete', order.id)">完成配货</n-button>
       </div>
     </div>
   </div>
@@ -36,6 +36,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { NButton } from 'naive-ui';
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -47,10 +48,15 @@ defineEmits(['complete', 'cancel']);
 const backendUrl = 'http://127.0.0.1:5000';
 
 const formattedTime = computed(() => {
-  return new Date(props.order.timestamp).toLocaleTimeString('zh-CN', {
+  return new Date(props.order.timestamp).toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    hour12: false,
   });
 });
 </script>

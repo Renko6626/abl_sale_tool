@@ -1,14 +1,18 @@
 <template>
   <div class="login-container">
-    <div class="login-box">
+    <n-card class="login-box" :bordered="false">
       <h2>{{ title }}</h2>
       <p>{{ subtitle }}</p>
       <form @submit.prevent="handleLogin">
-        <input v-model="password" type="password" placeholder="请输入密码" required />
-        <button type="submit" class="btn">进入</button>
-        <p v-if="error" class="error-message">{{ error }}</p>
+        <n-input v-model:value="password" type="password" placeholder="请输入密码" size="large" />
+        <div style="margin-top: 1rem;">
+          <n-button type="primary" attr-type="submit" block>进入</n-button>
+        </div>
+        <div v-if="error" class="error-message" style="margin-top: 1rem;">
+          <n-alert type="error" :bordered="false">{{ error }}</n-alert>
+        </div>
       </form>
-    </div>
+    </n-card>
   </div>
 </template>
 
@@ -16,6 +20,7 @@
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
+import { NCard, NInput, NButton, NAlert } from 'naive-ui';
 
 const props = defineProps({
   role: { type: String, required: true } // 'admin' or 'vendor'
@@ -52,5 +57,4 @@ async function handleLogin() {
 /* 登录页面的居中样式 */
 .login-container { display: flex; justify-content: center; align-items: center; height: 100vh; }
 .login-box { width: 350px; padding: 2rem; background-color: var(--card-bg-color); border-radius: 8px; text-align: center; }
-input { width: 100%; padding: 10px; margin-bottom: 1rem; /* ... */ }
 </style>

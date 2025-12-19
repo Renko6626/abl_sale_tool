@@ -1,44 +1,38 @@
 <template>
   <div class="form-container">
     <h3>创建新展会</h3>
-    <!-- 【修改】给 form 标签添加一个 class 用于设置网格布局 -->
-    <form @submit.prevent="handleSubmit" class="two-column-form">
-      <!-- .prevent 修饰符可以阻止表单提交时的默认页面刷新行为 -->
-      
-      <!-- 以下四个 form-group 会自动排列成 2x2 的网格 -->
+    <n-form @submit.prevent class="two-column-form">
       <div class="form-group">
         <label for="name">展会名称:</label>
-        <input id="name" v-model="formData.name" type="text" placeholder="例如：COMICUP 31" required />
+        <n-input id="name" v-model:value="formData.name" placeholder="例如：COMICUP 31" />
       </div>
       <div class="form-group">
         <label for="date">日期:</label>
-        <input id="date" v-model="formData.date" type="date" required />
+        <n-date-picker id="date" v-model:formatted-value="formData.date" type="date" value-format="yyyy-MM-dd" />
       </div>
       <div class="form-group">
         <label for="location">地点:</label>
-        <input id="location" v-model="formData.location" type="text" placeholder="例如：上海" />
+        <n-input id="location" v-model:value="formData.location" placeholder="例如：上海" />
       </div>
       <div class="form-group">
         <label for="vendor_password">摊主密码 (可选):</label>
-        <input id="vendor_password" v-model="formData.vendor_password" type="text" placeholder="留空则使用全局密码" />
+        <n-input id="vendor_password" v-model:value="formData.vendor_password" placeholder="留空则使用全局密码" />
       </div>
 
-      <!-- 【修改】这个 group 添加 'full-width' class，使其横跨两列 -->
       <div class="form-group full-width">
         <ImageUploader 
           label="展会收款码图片 (可选)"
           v-model="paymentQrCodeFile"
         />
       </div>
-      
-      <!-- 【修改】将按钮和错误信息也放入一个横跨两列的容器中 -->
+
       <div class="form-actions full-width">
-        <button type="submit" class="btn" :disabled="isSubmitting">
+        <n-button type="primary" :loading="isSubmitting" @click="handleSubmit">
           {{ isSubmitting ? '创建中...' : '创建' }}
-        </button>
+        </n-button>
         <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
       </div>
-    </form>
+    </n-form>
   </div>
 </template>
 
@@ -46,6 +40,7 @@
 import { ref } from 'vue';
 import { useEventStore } from '@/stores/eventStore';
 import ImageUploader from '@/components/shared/ImageUploader.vue';
+import { NForm, NInput, NDatePicker, NButton } from 'naive-ui';
 
 const store = useEventStore();
 const isSubmitting = ref(false);
@@ -53,7 +48,7 @@ const errorMessage = ref('');
 
 const formData = ref({
   name: '',
-  date: '',
+  date: null,
   location: '',
   vendor_password: '' 
 });
@@ -61,15 +56,13 @@ const formData = ref({
 // 【修改】只保留 v-model 需要的 ref
 const paymentQrCodeFile = ref(null);
 
-// 【清理】以下与图片预览和文件输入相关的逻辑都已封装在 ImageUploader 组件中，
-// 在这里不再需要，已安全移除。
-// const qrCodePreviewUrl = ref(null);
-// const fileInput = ref(null);
-// function triggerFileInput() { ... }
-// function handleFileChange(event) { ... }
-// function removeImage() { ... }
 
 async function handleSubmit() {
+  // 简单必填校验，保持与原先 required 一致
+  if (!formData.value.name || !formData.value.date) {
+    errorMessage.value = '展会名称和日期不能为空。';
+    return;
+  }
   isSubmitting.value = true;
   errorMessage.value = '';
 
@@ -86,7 +79,7 @@ async function handleSubmit() {
   try {
     await store.createEvent(submissionData);
     
-    formData.value = { name: '', date: '', location: '', vendor_password: '' };
+    formData.value = { name: '', date: null, location: '', vendor_password: '' };
     paymentQrCodeFile.value = null; 
     
   } catch (error) {
@@ -116,14 +109,12 @@ async function handleSubmit() {
   gap: 0.6rem 1rem; 
 }
 
-/* 【新增】让标有 .full-width 的元素横跨所有列 */
 .full-width {
   /* 从第1条网格线跨越到最后1条 (-1) */
   grid-column: 1 / -1;
 }
 
 .form-group {
-  /* 【修改】移除 margin-bottom，因为 'gap' 属性已经处理了间距 */
   margin-bottom: 0;
 }
 

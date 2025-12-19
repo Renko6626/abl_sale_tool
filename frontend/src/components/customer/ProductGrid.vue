@@ -1,14 +1,23 @@
 <template>
   <div class="product-grid" :class="`card-size-${props.cardSize}`">
-    <div 
-      v-for="product in products" 
+    <n-card
+      v-for="product in products"
       :key="product.id"
       class="product-card"
       :class="{ 'out-of-stock': product.current_stock === 0 }"
+      :hoverable="product.current_stock > 0"
+      embedded
       @click="handleCardClick(product)"
     >
       <div class="image-container">
-        <img v-if="product.image_url" :src="product.image_url" :alt="product.name" />
+        <n-image
+          v-if="product.image_url"
+          :src="product.image_url"
+          :alt="product.name"
+          preview-disabled
+          :img-props="{ style: 'width: 100%; height: 100%; object-fit: cover;' }"
+          style="width: 100%; height: 100%;"
+        />
         <div v-else class="no-img-placeholder">
           <span>{{ product.name.charAt(0) }}</span>
         </div>
@@ -20,11 +29,12 @@
       <div v-if="product.current_stock === 0" class="stock-overlay">
         <span>完售</span>
       </div>
-    </div>
+    </n-card>
   </div>
 </template>
 
 <script setup>
+import { NCard, NImage } from 'naive-ui';
 const props = defineProps({
   products: { type: Array, required: true },
   cardSize: { type: String, default: 'medium' }
@@ -74,11 +84,15 @@ function handleCardClick(product) {
   overflow: hidden;
 }
 
-.image-container img {
+/* 让 n-image 填满容器并裁剪铺满 */
+:deep(.image-container .n-image) {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* 等比例缩放并裁剪填满容器 */
-  object-position: center;
+}
+:deep(.image-container .n-image img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .product-card:hover {
@@ -89,11 +103,7 @@ function handleCardClick(product) {
 
 
 
-.image-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* 保证图片填满容器且不变形 */
-}
+
 
 .no-img-placeholder {
   width: 100%;
@@ -107,25 +117,33 @@ function handleCardClick(product) {
 }
 /* --- 商品信息 --- */
 .product-info {
-  padding: 0.75rem;
+  padding: 0.35rem;
   display: flex;
   flex-direction: column;
   flex-grow: 1; /* 填充剩余空间，使所有卡片高度一致 */
+  justify-content: space-between; /* 让价格固定在底部，可用空间给名称 */
 }
 
 .product-name {
   font-weight: 600;
   color: var(--primary-text-color);
-  white-space: nowrap;         /* 不换行 */
-  overflow: hidden;            /* 超出隐藏 */
-  text-overflow: ellipsis;     /* 超出显示省略号 */
-  flex-grow: 1;
+  /* 允许两行显示并溢出省略 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.15;
 }
 
 .product-price {
-  margin-top: 0.25rem;
+  margin-top: 0.05rem;
   color: var(--accent-color);
   font-weight: bold;
+  flex: none; /* 不参与挤压，固定在底部 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- 完售状态 --- */
@@ -156,24 +174,24 @@ function handleCardClick(product) {
 }
 .product-grid.card-size-small .product-card {
   width: 120px;
-  height: 180px;
+  height: 200px; /* 提升高度，保证两行名称+价格可见 */
 }
 .product-grid.card-size-medium .product-card {
   width: 180px;
-  height: 260px;
+  height: 270px; /* 略增高度，保证价格完全可见 */
 }
 .product-grid.card-size-large .product-card {
   width: 240px;
-  height: 340px;
+  height: 360px; /* 略增高度，保证信息区空间 */
 }
 .product-grid.card-size-small .image-container {
-  height: 126px;
+  height: 112px; /* 为信息区腾出空间 */
 }
 .product-grid.card-size-medium .image-container {
-  height: 182px;
+  height: 150px; /* 略减高度，为信息区预留空间 */
 }
 .product-grid.card-size-large .image-container {
-  height: 272px;
+  height: 240px; /* 为信息区腾出空间 */
 }
 .product-grid.card-size-small {
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -186,13 +204,13 @@ function handleCardClick(product) {
 }
 
 .product-grid.card-size-small .product-name {
-  font-size: 0.65rem;
+  font-size: 0.6rem; /* 略微减小字号 */
 }
 .product-grid.card-size-medium .product-name {
-  font-size: 0.8rem;
+  font-size: 0.76rem; /* 略微减小字号 */
 }
 .product-grid.card-size-large .product-name {
-  font-size: 1rem;
+  font-size: 0.95rem; /* 略微减小字号 */
 }
 
 .product-grid.card-size-small .product-price {
@@ -203,5 +221,17 @@ function handleCardClick(product) {
 }
 .product-grid.card-size-large .product-price {
   font-size: 1.25rem;
+}
+
+/* 缩小卡片的信息区内边距，以在小卡片中增大可用空间 */
+.product-grid.card-size-small .product-info {
+  padding: 0.5rem;
+  min-height: 56px;
+}
+.product-grid.card-size-medium .product-info {
+  min-height: 76px; /* 确保两行名称+价格不被裁切 */
+}
+.product-grid.card-size-large .product-info {
+  min-height: 84px;
 }
 </style>

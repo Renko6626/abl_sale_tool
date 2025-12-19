@@ -1,49 +1,55 @@
 <template>
   <div class="customer-view">
-<div class="sidebar">
-      <div class="category-list">
-        <button
-          class="category-btn"
-          :class="{ active: selectedCategory === '' }"
-          @click="selectedCategory = ''"
-        >全部分类</button>
-        <button
-          v-for="cat in categoryOptions"
-          :key="cat"
-          class="category-btn"
-          :class="{ active: selectedCategory === cat }"
-          @click="selectedCategory = cat"
-        >{{ cat }}</button>
-      </div>
+    <div class="sidebar">
+      <n-scrollbar style="max-height: 100vh;">
+        <n-space vertical class="category-list">
+          <n-button
+            class="category-btn"
+            :type="selectedCategory === '' ? 'primary' : 'default'"
+            :tertiary="selectedCategory !== ''"
+            block
+            @click="selectedCategory = ''"
+          >全部分类</n-button>
+          <n-button
+            v-for="cat in categoryOptions"
+            :key="cat"
+            class="category-btn"
+            :type="selectedCategory === cat ? 'primary' : 'default'"
+            :tertiary="selectedCategory !== cat"
+            block
+            @click="selectedCategory = cat"
+          >{{ cat }}</n-button>
+        </n-space>
+      </n-scrollbar>
     </div>
     <div class="product-panel">
-       <div class="card-size-toolbar">
-        <button 
-          :class="{ active: cardSize === 'small' }" 
-          @click="cardSize = 'small'">小</button>
-        <button 
-          :class="{ active: cardSize === 'medium' }" 
-          @click="cardSize = 'medium'">中</button>
-        <button 
-          :class="{ active: cardSize === 'large' }" 
-          @click="cardSize = 'large'">大</button>
+      <div class="card-size-toolbar">
+        <n-button-group>
+          <n-button :type="cardSize === 'small' ? 'primary' : 'default'" quaternary @click="cardSize = 'small'">小</n-button>
+          <n-button :type="cardSize === 'medium' ? 'primary' : 'default'" quaternary @click="cardSize = 'medium'">中</n-button>
+          <n-button :type="cardSize === 'large' ? 'primary' : 'default'" quaternary @click="cardSize = 'large'">大</n-button>
+        </n-button-group>
       </div>
-      <ProductGrid 
-        v-if="!store.isLoading"
-        :products="filteredProducts" 
-        :card-size="cardSize"
-        @add-to-cart="store.addToCart"
-      />
+      <n-spin :show="store.isLoading">
+        <ProductGrid 
+          v-if="!store.isLoading"
+          :products="filteredProducts" 
+          :card-size="cardSize"
+          @add-to-cart="store.addToCart"
+        />
+      </n-spin>
     </div>
     <div class="cart-panel" v-if="!isMobile">
-      <ShoppingCart 
-        :cart="store.cart"
-        :total="store.cartTotal"
-        :is-checking-out="isCheckingOut"
-        @add-to-cart="store.addToCart"
-        @remove-from-cart="store.removeFromCart"
-        @checkout="handleCheckout"
-      />
+      <n-card size="small" embedded>
+        <ShoppingCart 
+          :cart="store.cart"
+          :total="store.cartTotal"
+          :is-checking-out="isCheckingOut"
+          @add-to-cart="store.addToCart"
+          @remove-from-cart="store.removeFromCart"
+          @checkout="handleCheckout"
+        />
+      </n-card>
     </div>
     <!-- 手机端底部悬浮购物车 -->
     <ShoppingCart 
@@ -76,6 +82,7 @@ import { socket } from '@/services/socketService';
 import ProductGrid from '@/components/customer/ProductGrid.vue';
 import ShoppingCart from '@/components/customer/ShoppingCart.vue';
 import PaymentModal from '@/components/customer/PaymentModal.vue';
+import { NButton, NButtonGroup, NSpace, NScrollbar, NCard, NSpin } from 'naive-ui';
 
 // 【核心改动】通过 props 接收来自路由的展会 ID
 const props = defineProps({

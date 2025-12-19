@@ -7,25 +7,24 @@
 
     <main>
       <!-- 创建表单 -->
-      <div class="form-container">
-        <h3>添加新商品到仓库</h3>
+      <n-card class="form-container" title="添加新商品到仓库" size="small">
         <form @submit.prevent="handleCreate">
           <div class="form-grid">
             <div class="form-group">
               <label for="create-code">商品编号:</label>
-              <input id="create-code" v-model="createFormData.product_code" type="text" placeholder="A01" required />
+              <n-input id="create-code" v-model:value="createFormData.product_code" placeholder="A01" clearable required />
             </div>
             <div class="form-group">
               <label for="create-name">商品名称:</label>
-              <input id="create-name" v-model="createFormData.name" type="text" placeholder="灵梦亚克力立牌" required />
+              <n-input id="create-name" v-model:value="createFormData.name" placeholder="灵梦亚克力立牌" clearable required />
             </div>
             <div class="form-group">
               <label for="create-price">默认价格 (¥):</label>
-              <input id="create-price" v-model.number="createFormData.default_price" type="number" step="0.01" placeholder="45.00" required />
+              <n-input-number id="create-price" v-model:value="createFormData.default_price" :step="0.01" :min="0" placeholder="45.00" required />
             </div>
             <div class="form-group">
               <label for="create-category">商品分类:</label>
-            <input id="create-category" v-model="createFormData.category" type="text" placeholder="漫画、亚克力、毛绒玩具等" />
+            <n-input id="create-category" v-model:value="createFormData.category" placeholder="漫画、亚克力、毛绒玩具等" clearable />
             </div>
           </div>
           
@@ -35,18 +34,15 @@
             v-model="createFormFile"
           />
 
-          <button type="submit" class="btn" :disabled="isCreating">
+          <n-button type="primary" attr-type="submit" :disabled="isCreating">
             {{ isCreating ? '添加中...' : '添加到仓库' }}
-          </button>
+          </n-button>
           <p v-if="createError" class="error-message">{{ createError }}</p>
         </form>
-      </div>
+      </n-card>
       
       <div class="filters">
-        <label>
-          <input type="checkbox" v-model="store.showInactive" @change="store.fetchMasterProducts()" />
-          显示已停用的商品
-        </label>
+        <n-checkbox v-model:checked="store.showInactive" @update:checked="store.fetchMasterProducts()">显示已停用的商品</n-checkbox>
       </div>
       
       <!-- 商品列表 -->
@@ -60,19 +56,19 @@
         <form v-if="editableProduct" class="edit-form" @submit.prevent="handleUpdate">
           <div class="form-group">
             <label>商品编号:</label>
-            <input v-model="editableProduct.product_code" type="text" required />
+            <n-input v-model:value="editableProduct.product_code" clearable required />
           </div>
           <div class="form-group">
             <label>商品名称:</label>
-            <input v-model="editableProduct.name" type="text" required />
+            <n-input v-model:value="editableProduct.name" clearable required />
           </div>
           <div class="form-group">
             <label>默认价格 (¥):</label>
-            <input v-model.number="editableProduct.default_price" type="number" step="0.01" required />
+            <n-input-number v-model:value="editableProduct.default_price" :step="0.01" :min="0" required />
           </div>
           <div class="form-group">
             <label>商品分类:</label>
-            <input v-model="editableProduct.category" type="text" placeholder="漫画、亚克力、毛绒玩具等" />
+            <n-input v-model:value="editableProduct.category" placeholder="漫画、亚克力、毛绒玩具等" clearable />
           </div>
 
           <!-- 【核心修改】再次使用 ImageUploader 组件 -->
@@ -87,10 +83,12 @@
         </form>
       </template>
       <template #footer>
-        <button type="button" class="btn" @click="closeEditModal">取消</button>
-        <button type="button" class="btn btn-primary" @click="handleUpdate" :disabled="isUpdating">
-          {{ isUpdating ? '保存中...' : '保存更改' }}
-        </button>
+        <n-space>
+          <n-button @click="closeEditModal">取消</n-button>
+          <n-button type="primary" @click="handleUpdate" :disabled="isUpdating">
+            {{ isUpdating ? '保存中...' : '保存更改' }}
+          </n-button>
+        </n-space>
       </template>
     </AppModal>
   </div>
@@ -103,6 +101,7 @@ import MasterProductList from '@/components/product/MasterProductList.vue';
 import AppModal from '@/components/shared/AppModal.vue';
 // 【新增】导入可复用的图片上传组件
 import ImageUploader from '@/components/shared/ImageUploader.vue';
+import { NCard, NInput, NInputNumber, NButton, NCheckbox, NSpace } from 'naive-ui';
 
 const store = useProductStore();
 // 【移除】不再需要硬编码的 backendUrl
@@ -121,10 +120,14 @@ async function handleCreate() {
   try {
     // 【修改】构建 FormData
     const formData = new FormData();
-    formData.append('product_code', createFormData.value.product_code);
-    formData.append('name', createFormData.value.name);
-    formData.append('default_price', createFormData.value.default_price);
-    formData.append('category', createFormData.value.category);
+    const code = String(createFormData.value.product_code || '').trim();
+    const name = String(createFormData.value.name || '').trim();
+    const price = createFormData.value.default_price;
+    const category = String(createFormData.value.category ?? '').trim();
+    formData.append('product_code', code);
+    formData.append('name', name);
+    formData.append('default_price', String(price));
+    if (category) formData.append('category', category);
     if (createFormFile.value) {
       formData.append('image', createFormFile.value);
     }
@@ -174,10 +177,14 @@ async function handleUpdate() {
   try {
     // 【修改】构建 FormData
     const formData = new FormData();
-    formData.append('product_code', editableProduct.value.product_code);
-    formData.append('name', editableProduct.value.name);
-    formData.append('default_price', editableProduct.value.default_price);
-    formData.append('category', editableProduct.value.category);
+    const eCode = String(editableProduct.value.product_code || '').trim();
+    const eName = String(editableProduct.value.name || '').trim();
+    const ePrice = editableProduct.value.default_price;
+    const eCategory = String(editableProduct.value.category ?? '').trim();
+    formData.append('product_code', eCode);
+    formData.append('name', eName);
+    formData.append('default_price', String(ePrice));
+    if (eCategory) formData.append('category', eCategory);
     if (editFormFile.value) {
       formData.append('image', editFormFile.value);
     } else if (isImageRemovedForEdit.value) {
@@ -231,15 +238,6 @@ async function handleToggleStatus(product) {
 }
 .form-group { display: flex; flex-direction: column; }
 label { margin-bottom: 0.5rem; }
-input[type="text"], input[type="number"] {
-  width: 100%;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
-  color: var(--primary-text-color);
-  padding: 10px;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
 .error-message { color: var(--error-color); margin-top: 1rem; }
 
 .btn-primary {

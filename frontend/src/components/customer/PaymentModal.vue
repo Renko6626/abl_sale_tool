@@ -1,151 +1,122 @@
 <template>
-  <div v-if="show" class="payment-modal-backdrop">
-    <div class="payment-modal-content">
-      <h3>请扫码支付 <strong>¥{{ total.toFixed(2) }}</strong></h3>
-      
-      <!-- 动态显示收款码图片 -->
-      <div v-if="qrCodeUrl" class="qr-code-container">
-        <img :src="qrCodeUrl" alt="收款码" class="qr-code" />
+  <n-modal :show="show" :mask-closable="true" @update:show="val => { if (!val) $emit('close') }">
+    <n-card
+      :bordered="true"
+      size="medium"
+      class="payment-card"
+      :segmented="{ content: true, footer: true }"
+      :style="cardStyle"
+    >
+      <template #header>
+        <div class="header-line">
+          请扫码支付 <strong>¥{{ total.toFixed(2) }}</strong>
+        </div>
+      </template>
+
+      <div class="content-area">
+        <div v-if="qrCodeUrl" class="qr-code-container">
+          <n-image :src="qrCodeUrl" alt="收款码" class="qr-code" preview-disabled />
+        </div>
+        <div v-else class="no-qr-code">
+          <p>暂无收款码</p>
+          <p>请联系摊主设置收款码</p>
+        </div>
+        <p class="scan-tip">
+          手机浏览器用户请长按二维码图片保存后，<br />
+          用微信/支付宝“扫一扫”识别付款
+        </p>
+        <p class="after-tip">支付完成后，请等待摊主为您配货</p>
       </div>
 
-      <!-- 如果没有收款码，显示提示信息 -->
-      <div v-else class="no-qr-code">
-        <p>暂无收款码</p>
-        <p>请联系摊主设置收款码</p>
-      </div>
-      <p class="scan-tip">
-        手机浏览器用户请长按二维码图片保存后，<br>
-        用微信/支付宝“扫一扫”识别付款
-      </p>
-      
-      <p>支付完成后，请等待摊主为您配货</p>
-      <button class="btn" @click="$emit('close')">关闭</button>
-    </div>
-  </div>
+      <template #footer>
+        <n-button block type="primary" @click="$emit('close')">关闭</n-button>
+      </template>
+    </n-card>
+  </n-modal>
+  
 </template>
-
 <script setup>
-defineProps({
+import { computed } from 'vue';
+import { NModal, NCard, NImage, NButton } from 'naive-ui';
+
+const props = defineProps({
   show: { type: Boolean, required: true },
   total: { type: Number, required: true },
-  qrCodeUrl: { type: String, default: null } // 新增：收款码URL
+  qrCodeUrl: { type: String, default: null }
 });
 defineEmits(['close']);
+
+// 响应式卡片宽度：桌面 520px，移动端占 92vw
+const cardStyle = computed(() => ({
+  width: 'min(520px, 92vw)'
+}));
 </script>
-
 <style scoped>
-/* 1. 背景遮罩：使用 fixed 定位覆盖整个屏幕 */
-
-/* 3. 标题和二维码样式 */
-.payment-modal-content h3 {
-  margin: 0;
-  font-size: 1.8rem;
-  color: var(--primary-text-color);
+/* 标题和二维码样式 */
+.header-line {
+  font-size: 1.2rem;
 }
-
-.payment-modal-content h3 strong {
+.header-line strong {
   color: var(--accent-color);
-  font-size: 1rem;
 }
 
-.payment-modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 80vw;
-  height: 80vh;
-  background-color: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1300;
-}
-
-.payment-modal-content {
-  background-color: var(--card-bg-color);
-  padding: 1rem 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+.payment-card {
   text-align: center;
-  max-width: 800px;
-  width: 90%;
+}
+
+.content-area {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  /* 去掉内部高度限制，避免出现内滚动条 */
+  max-height: none;
+  overflow: visible;
 }
-
 .qr-code-container {
-  width: 80%;
+  width: 100%;
   display: flex;
   justify-content: center;
 }
 
 .qr-code {
-  max-width: 600px;
-  width: 80%;
+  width: 100%;
+  max-width: 420px; /* 桌面最大 420px */
   aspect-ratio: 1 / 1;
   border-radius: 8px;
-  object-fit: contain;
+}
+:deep(.qr-code img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* 保持完整显示且不溢出 */
 }
 
 .no-qr-code {
   padding: 2rem;
   color: #888;
-  border: 2px dashed #ccc;
+  border: 2px dashed var(--border-color);
   border-radius: 8px;
-  background-color: #f9f9f9;
+  background-color: var(--bg-color);
 }
 
 .no-qr-code p {
   margin: 0.5rem 0;
 }
 
-.payment-modal-content p {
+.payment-card p {
   margin: 0;
   color: #aaa;
 }
 
-/* 4. 关闭按钮样式 */
-.payment-modal-content .btn {
-  width: 100%;
-  padding: 1rem;
-  font-size: 1.2rem;
-}
 @media (max-width: 600px) {
-  .payment-modal-backdrop {
-    width: 100vw;
-    height: 100vh;
-    left: 0;
-    top: 0;
-    padding: 0;
-  }
-  .payment-modal-content {
-    width: 100vw;
-    max-width: 100vw;
-    min-width: 0;
-    height: 100vh;
-    max-height: 100vh;
-    border-radius: 0;
-    padding: 0.5rem 0.5rem 1.2rem 0.5rem;
-    justify-content: flex-start;
-  }
-  .qr-code-container {
-    width: 100%;
-    margin: 0.5rem 0 1rem 0;
-  }
-  .qr-code {
-    width: 95vw;
-    max-width: 95vw;
-    height: auto;
-    aspect-ratio: 1 / 1;
+  .payment-card {
     border-radius: 8px;
   }
-  .payment-modal-content .btn {
-    font-size: 1.1rem;
-    padding: 0.8rem;
-  }
+  .qr-code-container { width: 100%; margin: 0.5rem 0 1rem 0; }
+  /* 移动端：二维码宽度跟随卡片内容宽度，不再使用视口宽度，避免横向滚动 */
+  .qr-code { width: 100%; max-width: 100%; }
 }
+.after-tip { margin-top: -0.25rem; }
 .scan-tip {
   color: var(--accent-color);
   font-size: 1.1rem;

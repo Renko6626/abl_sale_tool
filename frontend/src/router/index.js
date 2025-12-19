@@ -12,6 +12,8 @@ import EventPortalView from '../views/EventPortalView.vue'
 import AdminEventOrders from '../views/AdminEventOrders.vue'
 import LoginView from '../views/LoginView.vue'
 import AdminEventStat from '../views/AdminEventStat.vue';
+import NotFound from '../views/NotFound.vue';
+import ServerError from '../views/ServerError.vue';
 const routes = [
     // --- 路由组 1: 管理后台 ---
     // 所有 /admin 开头的路径都会使用 AdminLayout 布局
@@ -90,6 +92,17 @@ const routes = [
     component: LoginView,
     props: true, // 将 :role 作为 prop 传给 LoginView
     },
+    // --- 错误页 ---
+    {
+      path: '/error/500',
+      name: 'server-error',
+      component: ServerError,
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFound,
+    }
 ]
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

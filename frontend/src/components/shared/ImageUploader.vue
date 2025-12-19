@@ -2,27 +2,32 @@
 <template>
   <div class="image-uploader-container">
     <label v-if="label" class="form-label">{{ label }}</label>
-    
-    <!-- 隐藏的文件输入框 -->
-    <input 
-      type="file" 
-      ref="fileInputRef" 
-      @change="handleFileChange" 
-      accept="image/*" 
-      style="display: none;"
-    />
 
     <!-- 图片预览区 -->
     <div class="image-preview-wrapper">
       <!-- 1. 新图片预览 -->
-      <div v-if="previewUrl" class="image-preview-box">
-        <img :src="previewUrl" alt="新图片预览" class="image-preview" />
-        <span class="preview-tag">新图片</span>
+      <div v-if="previewUrl" class="image-preview-box" :style="boxStyle">
+        <n-image
+          :src="previewUrl"
+          alt="新图片预览"
+          class="image-preview"
+          preview-disabled
+          :width="maxWidth"
+          :height="maxHeight"
+        />
+        <n-tag size="small" type="default" class="preview-tag">新图片</n-tag>
       </div>
       <!-- 2. 初始图片显示 (如果没有选择新图片) -->
-      <div v-else-if="initialImageUrl" class="image-preview-box">
-        <img :src="initialImageUrl" alt="当前图片" class="image-preview" />
-        <span class="preview-tag">当前图片</span>
+      <div v-else-if="initialImageUrl" class="image-preview-box" :style="boxStyle">
+        <n-image
+          :src="initialImageUrl"
+          alt="当前图片"
+          class="image-preview"
+          preview-disabled
+          :width="maxWidth"
+          :height="maxHeight"
+        />
+        <n-tag size="small" type="default" class="preview-tag">当前图片</n-tag>
       </div>
       <!-- 3. 无图提示 -->
       <div v-else class="no-image-placeholder">
@@ -32,23 +37,32 @@
 
     <!-- 操作按钮 -->
     <div class="image-actions">
-      <button type="button" class="btn btn-secondary" @click="triggerFileInput">
-        {{ initialImageUrl || previewUrl ? '更换图片' : '选择图片' }}
-      </button>
-      <button 
-        type="button" 
-        class="btn btn-danger" 
-        v-if="initialImageUrl || previewUrl" 
+      <n-upload
+        accept="image/*"
+        :default-upload="false"
+        :show-file-list="false"
+        @change="onUploadChange"
+      >
+        <n-button tertiary>
+          {{ initialImageUrl || previewUrl ? '更换图片' : '选择图片' }}
+        </n-button>
+      </n-upload>
+      <n-button 
+        v-if="initialImageUrl || previewUrl"
+        type="error"
+        tertiary
         @click="removeImage"
       >
         移除图片
-      </button>
+      </n-button>
     </div>
   </div>
+  
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { NUpload, NButton, NTag, NImage } from 'naive-ui';
 
 // =================================================================
 // 组件 API 定义 (Props & Emits)
@@ -69,6 +83,15 @@ const props = defineProps({
   label: {
     type: String,
     default: '图片上传'
+  },
+  // 预览区域最大宽高（像素）
+  maxWidth: {
+    type: Number,
+    default: 200
+  },
+  maxHeight: {
+    type: Number,
+    default: 200
   }
 });
 
@@ -78,9 +101,13 @@ const emit = defineEmits(['update:modelValue', 'image-removed']);
 // 内部状态和逻辑
 // =================================================================
 
-const backendUrl = import.meta.env.VITE_API_BASE_URL;
-const fileInputRef = ref(null);
 const previewUrl = ref(null); // 仅用于新选择文件的本地预览
+
+// 盒子样式，确保预览区域有固定尺寸，内部图片按 contain 显示
+const boxStyle = computed(() => ({
+  width: props.maxWidth + 'px',
+  height: props.maxHeight + 'px'
+}));
 
 // 当 initialImageUrl 改变时 (例如父组件的模态框用于编辑不同项)
 // 我们需要重置内部状态，以防显示上一个项目的预览
@@ -88,21 +115,12 @@ watch(() => props.initialImageUrl, () => {
   resetState();
 });
 
-function triggerFileInput() {
-  fileInputRef.value.click();
-}
-
-function handleFileChange(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  // 清理之前的预览 URL，防止内存泄漏
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-  }
-
-  previewUrl.value = URL.createObjectURL(file);
-  emit('update:modelValue', file); // 更新 v-model
+function onUploadChange({ file }) {
+  const raw = file && file.file ? file.file : null;
+  if (!raw) return;
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value);
+  previewUrl.value = URL.createObjectURL(raw);
+  emit('update:modelValue', raw);
 }
 
 function removeImage() {
@@ -117,9 +135,6 @@ function resetState() {
     URL.revokeObjectURL(previewUrl.value);
   }
   previewUrl.value = null;
-  if (fileInputRef.value) {
-    fileInputRef.value.value = '';
-  }
 }
 </script>
 
@@ -143,9 +158,14 @@ function resetState() {
   background-color: var(--bg-color);
 }
 .image-preview {
-  max-width: 200px;
-  max-height: 200px;
+  width: 100%;
+  height: 100%;
   display: block;
+}
+.image-preview :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .preview-tag {
   position: absolute;

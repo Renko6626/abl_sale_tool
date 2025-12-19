@@ -90,9 +90,14 @@ def update_master_product_status(mp_id, jwt_payload=None):
 @jwt_required(roles={'admin'})
 def create_master_product(jwt_payload=None):
     data = request.form
-    required = ['product_code', 'name', 'default_price']
-    if not all(field in data for field in required):
-        return jsonify(error=f"Missing required fields: {', '.join(required)}"), 400
+    # 裁剪并校验必填字段，避免空字符串进入数据库
+    product_code = (data.get('product_code') or '').strip()
+    name = (data.get('name') or '').strip()
+    default_price_raw = data.get('default_price')
+    default_price_str = (str(default_price_raw).strip() if default_price_raw is not None else '')
+
+    if not product_code or not name or not default_price_str:
+        return jsonify(error="Missing required fields: product_code, name, default_price"), 400
 
     image_url = None
     if 'image' in request.files:
@@ -103,9 +108,9 @@ def create_master_product(jwt_payload=None):
                 return jsonify(error="Image processing failed."), 500
     try:
         new_mp = MasterProduct(
-            product_code=data['product_code'],
-            name=data['name'],
-            default_price=float(data['default_price']),
+            product_code=product_code,
+            name=name,
+            default_price=float(default_price_str),
             image_url=image_url,
             category=data.get('category', None) # 【新增】分类字段
         )
@@ -114,7 +119,7 @@ def create_master_product(jwt_payload=None):
         return jsonify(new_mp.to_dict()), 201
     except IntegrityError:
         db.session.rollback()
-        return jsonify(error=f"Product code '{data['product_code']}' already exists."), 409
+        return jsonify(error=f"Product code '{product_code}' already exists."), 409
     except Exception as e:
         db.session.rollback()
         # 【新增】如果数据库出错，删除已上传的文件

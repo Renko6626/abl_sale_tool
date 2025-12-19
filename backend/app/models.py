@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from . import db
 from sqlalchemy import UniqueConstraint
 
@@ -102,7 +102,11 @@ class Product(db.Model):
 # Order (订单) 模型
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    # 记录为北京时间 (UTC+8)
+    def _beijing_now():
+        return datetime.utcnow() + timedelta(hours=8)
+
+    timestamp = db.Column(db.DateTime, index=True, default=_beijing_now)
     status = db.Column(db.String(64), default='pending') # pending, completed, cancelled
     total_amount = db.Column(db.Float, nullable=False)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)

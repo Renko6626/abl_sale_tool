@@ -15,3 +15,5 @@ from . import product_routes
 from . import order_routes
 from . import stats_routes
 from . import auth_routes
+# 局域网连接信息
+from . import local_apply

@@ -1,21 +1,21 @@
 <template>
   <!-- 这个组件没有自己的容器，因为它将被嵌入到模态框中 -->
-  <form @submit.prevent="handleSubmit">
+  <n-form @submit.prevent>
     <div class="form-group">
       <label for="edit-name">展会名称:</label>
-      <input id="edit-name" v-model="editableEvent.name" type="text" required />
+      <n-input id="edit-name" v-model:value="editableEvent.name" />
     </div>
     <div class="form-group">
       <label for="edit-date">日期:</label>
-      <input id="edit-date" v-model="editableEvent.date" type="date" required />
+      <n-date-picker id="edit-date" v-model:value="editableEvent.date" type="date" value-format="yyyy-MM-dd" />
     </div>
     <div class="form-group">
       <label for="edit-location">地点:</label>
-      <input id="edit-location" v-model="editableEvent.location" type="text" />
+      <n-input id="edit-location" v-model:value="editableEvent.location" />
     </div>
     <div class="form-group">
       <label for="edit-vendor_password">摊主密码 (可选):</label>
-      <input id="edit-vendor_password" v-model="editableEvent.vendor_password" type="text" placeholder="留空则清除密码" />
+      <n-input id="edit-vendor_password" v-model:value="editableEvent.vendor_password" placeholder="留空则清除密码" />
     </div>
     <ImageUploader
       label="展会收款码"
@@ -24,13 +24,14 @@
       @image-removed="handleImageRemoval"
     />
     <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-    <!-- 提交按钮将由父组件（模态框）的 footer slot 提供 -->
-  </form>
+    <!-- 提交按钮仍由父组件模态框 footer 提供 -->
+  </n-form>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue';
 import ImageUploader from '@/components/shared/ImageUploader.vue'; 
+import { NForm, NInput, NDatePicker } from 'naive-ui';
 const props = defineProps({
   event: {
     type: Object,
@@ -52,6 +53,10 @@ const imageRemoved = ref(false); // 专门的事件会更新这个
 watch(() => props.event, (newEvent) => {
   if (newEvent) {
     editableEvent.value = { ...newEvent, vendor_password: newEvent.vendor_password || '' };
+    // 避免将空字符串传入 NDatePicker
+    if (!editableEvent.value.date) {
+      editableEvent.value.date = null;
+    }
     // 重置提交状态
     newQrCodeFile.value = null;
     imageRemoved.value = false;

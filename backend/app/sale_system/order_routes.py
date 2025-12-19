@@ -205,10 +205,9 @@ def _get_sales_summary_data(event_id, product_code=None, start_date=None, end_da
         ts = row.ts
         if not ts:
             continue
-        # 统一转为 UTC+8 显示
-        ts_utc8 = ts + timedelta(hours=8)
-        floored_minute = (ts_utc8.minute // interval) * interval
-        bucket_time = ts_utc8.replace(minute=floored_minute, second=0, microsecond=0)
+        # 时间已按北京时间存储，无需额外偏移
+        floored_minute = (ts.minute // interval) * interval
+        bucket_time = ts.replace(minute=floored_minute, second=0, microsecond=0)
         bucketed[bucket_time] += float(row.revenue or 0)
 
     timeseries = [
@@ -302,7 +301,8 @@ def download_sales_summary_excel(event_id, jwt_payload=None):
         # --- 写入和设置标题 ---
         ws.merge_cells('A1:F1')
         title_cell = ws['A1']
-        title_cell.value = f"境界景观学会出摊标准记录 {pd.Timestamp.now().strftime('%Y年%m月')}版"
+        # 使用北京时间生成标题时间
+        title_cell.value = f"境界景观学会出摊标准记录 {(pd.Timestamp.utcnow() + pd.Timedelta(hours=8)).strftime('%Y年%m月')}版"
         title_cell.font = title_font
         title_cell.alignment = center_align
         ws['G1'].value = "摊位号"
@@ -368,7 +368,8 @@ def download_sales_summary_excel(event_id, jwt_payload=None):
 
     # --- 准备并发送文件部分保持不变 ---
     output_buffer.seek(0)
-    filename = f"{sales_data['event_name']}_出摊记录_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx"
+    # 使用北京时间生成文件名日期
+    filename = f"{sales_data['event_name']}_出摊记录_{(pd.Timestamp.utcnow() + pd.Timedelta(hours=8)).strftime('%Y%m%d')}.xlsx"
 
     return send_file(
         output_buffer,

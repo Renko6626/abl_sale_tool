@@ -15,6 +15,8 @@ export const getApiBaseUrl = () => {
 
 const apiClient = axios.create({
   baseURL: getApiBaseUrl(),
+  // 确保在开发代理或跨子域情况下也携带 Cookie（用于后端 HttpOnly JWT）
+  withCredentials: true,
 });
 
 // 添加请求拦截器，用于调试
@@ -22,6 +24,14 @@ apiClient.interceptors.request.use(
   (config) => {
     if (import.meta.env.DEV) {
       console.log(`🚀 API请求: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+      // 调试：如果是 FormData，打印所有键值，便于核对字段名是否匹配后端
+      if (config.data instanceof FormData) {
+        const entries = [];
+        for (const [k, v] of config.data.entries()) {
+          entries.push([k, v instanceof Blob ? `(Blob:${v.type||'unknown'})` : String(v)]);
+        }
+        console.log('📦 FormData payload:', entries);
+      }
     }
     return config;
   },

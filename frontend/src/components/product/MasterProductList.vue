@@ -2,65 +2,81 @@
   <div class="list-container">
     <h2>商品列表</h2>
     <div class="search-box">
-      <input 
-        type="text" 
-        v-model="store.searchTerm" 
+      <n-input
+        v-model:value="store.searchTerm"
         placeholder="搜索名称或编号..."
+        clearable
+        style="max-width: 280px;"
       />
-      <!-- 新增分类筛选 -->
-      <select v-model="selectedCategory" @change="filterByCategory" class="category-select">
-        <option value="">全部分类</option>
-        <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
-      </select>
+      <n-select
+        v-model:value="selectedCategory"
+        :options="categoryOptions.map(c => ({ label: c, value: c }))"
+        clearable
+        placeholder="全部分类"
+        class="category-select"
+        style="min-width: 160px;"
+      />
     </div>
-    <div v-if="store.isLoading">加载中...</div>
-    <div v-else-if="store.error" class="error-message">{{ store.error }}</div>
-    <table v-else-if="filteredProducts.length" class="product-table">
-      <thead>
-        <tr>
-          <th>图像</th>
-          <th>编号</th>
-          <th>名称</th>
-          <th>默认价格</th>
-          <th>商品分类</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="product in filteredProducts" :key="product.id">
-          <td>
-            <!-- 新增图片预览 -->
-            <img v-if="product.image_url" :src="product.image_url" :alt="product.name" class="preview-img">
-            <span v-else class="no-img">无图</span>
-          </td>
-          <td>{{ product.product_code }}</td>
-          <td>{{ product.name }}</td>
-          <td>¥{{ product.default_price.toFixed(2) }}</td>
-          <td>{{ product.category || '未分类' }}</td>
-          <td>
-                <button class="action-btn" @click="$emit('edit', product)">编辑</button>
-                <button 
-                  class="action-btn" 
-                  :class="{ 'btn-success': !product.is_active, 'btn-danger': product.is_active }"
+    <n-spin :show="store.isLoading">
+      <div v-if="store.error" class="error-message">{{ store.error }}</div>
+      <n-card v-else-if="filteredProducts.length" embedded>
+        <table class="product-table">
+          <thead>
+            <tr>
+              <th>图像</th>
+              <th>编号</th>
+              <th>名称</th>
+              <th>默认价格</th>
+              <th>商品分类</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="product in filteredProducts" :key="product.id" :class="{ inactive: !product.is_active }">
+              <td>
+                <n-image
+                  v-if="product.image_url"
+                  :src="product.image_url"
+                  :alt="product.name"
+                  class="preview-img"
+                  preview-disabled
+                  style="width: 80px; height: 80px;"
+                  :img-props="{ style: 'width: 100%; height: 100%; object-fit: cover; display: block;' }"
+                />
+                <span v-else class="no-img">无图</span>
+              </td>
+              <td>{{ product.product_code }}</td>
+              <td>{{ product.name }}</td>
+              <td>¥{{ product.default_price.toFixed(2) }}</td>
+              <td>{{ product.category || '未分类' }}</td>
+              <td>
+                <n-button size="small" tertiary @click="$emit('edit', product)">编辑</n-button>
+                <n-button 
+                  size="small"
+                  :type="product.is_active ? 'error' : 'success'"
+                  tertiary
                   @click="$emit('toggleStatus', product)"
+                  style="margin-left: 8px;"
                 >
                   {{ product.is_active ? '停用' : '启用' }}
-                </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p v-else-if="store.searchTerm && !store.filteredProducts.length">
-      没有找到匹配 "<strong>{{ store.searchTerm }}</strong>" 的商品。
-    </p>
-    <p v-else>商品库为空。</p>
+                </n-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </n-card>
+      <p v-else-if="store.searchTerm && !store.filteredProducts.length">
+        没有找到匹配 "<strong>{{ store.searchTerm }}</strong>" 的商品。
+      </p>
+      <p v-else>商品库为空。</p>
+    </n-spin>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
-import AppModal from '@/components/shared/AppModal.vue';
+import { NInput, NSelect, NImage, NButton, NSpin, NCard } from 'naive-ui';
 const backendUrl = 'http://127.0.0.1:5000';
 const store = useProductStore();
 defineEmits(['edit', 'toggleStatus']);
@@ -92,6 +108,13 @@ onMounted(async() => {
 </script>
 
 <style scoped>
+.search-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap; /* 不换行 */
+  gap: 12px;
+  overflow-x: auto; /* 窄屏时允许横向滚动而非换行 */
+}
 .list-header {
   display: flex;
   justify-content: space-between;
@@ -108,6 +131,11 @@ onMounted(async() => {
   padding: 8px 12px;
   border-radius: 4px;
   min-width: 250px;
+}
+/* 调整 Naive 选择器与输入的间距对齐 */
+.search-box :deep(.n-input),
+.search-box :deep(.n-select) {
+  margin-right: 0; /* 交给 gap 控制间距 */
 }
 
 .action-btn {
@@ -145,12 +173,12 @@ onMounted(async() => {
   border-collapse: collapse; /* 移除单元格间距 */
   border-spacing: 0;
   text-align: left;
-  font-size: 0.95rem;
+  font-size: 0.9rem; /* 稍微缩小行内字体 */
 }
 
 /* 表头样式 */
 .product-table th {
-  padding: 12px 16px;
+  padding: 8px 12px; /* 缩小行高 */
   background-color: var(--card-bg-color); /* 使用卡片背景色 */
   color: var(--primary-text-color);
   font-weight: 600;
@@ -159,7 +187,7 @@ onMounted(async() => {
 
 /* 数据单元格样式 */
 .product-table td {
-  padding: 12px 16px;
+  padding: 8px 12px; /* 缩小行高 */
   border-bottom: 1px solid var(--border-color); /* 使用柔和的水平分隔线 */
   color: #ccc; /* 数据文字颜色稍暗，以突出标题 */
   vertical-align: middle;
@@ -188,14 +216,20 @@ onMounted(async() => {
   text-align: right; /* 让操作按钮靠右对齐 */
   padding-right: 0;
 }
-
+/* 图片要缩放和裁剪到列标准宽度 */
 .preview-img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
+  width: 64px;   /* 缩小预览图，进一步降低行高 */
+  height: 64px;
   border-radius: 4px;
   border: 1px solid var(--border-color);
   vertical-align: middle;
+}
+/* 确保 n-image 内部的 img 也被约束并裁剪 */
+:deep(.preview-img img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .no-img {
@@ -227,7 +261,7 @@ onMounted(async() => {
   color: white;
 }
 .category-select {
-  margin-left: 1rem;
+  margin-left: 0; /* 使用上方 gap 控制间距 */
   padding: 8px 12px;
   border-radius: 4px;
   border: 1px solid var(--border-color);

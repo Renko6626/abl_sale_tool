@@ -15,7 +15,9 @@
     "@headlessui/vue": "^1.7.23",
     "axios": "^1.11.0",
     "pinia": "^2.1.7",
+    "qrcode.vue": "^3.6.0",
     "socket.io-client": "^4.8.1",
+    "vicons": "^0.0.1",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },
@@ -31,9 +33,11 @@
     "eslint-plugin-playwright": "^2.2.0",
     "eslint-plugin-vue": "~10.3.0",
     "jiti": "^2.4.2",
+    "naive-ui": "^2.43.2",
     "npm-run-all2": "^8.0.4",
     "prettier": "3.6.2",
     "typescript": "~5.8.0",
+    "vfonts": "^0.0.3",
     "vite": "^7.0.6",
     "vite-plugin-vue-devtools": "^8.0.0",
     "vue-tsc": "^3.0.4"

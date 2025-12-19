@@ -2,25 +2,27 @@
   <div class="stats-container">
     <div class="stats-header">
       <h3>实时销售统计</h3>
-      <button class="collapse-btn" @click="collapsed=!collapsed">
+      <n-button tertiary size="small" class="collapse-btn" @click="collapsed=!collapsed">
         {{ collapsed ? '展开' : '收起' }}
-        <span v-if="collapsed">▼</span>
-        <span v-else>▲</span>
-      </button>
+      </n-button>
     </div>
     <div v-show="!collapsed">
-      <div class="stats-summary">
-        <div class="stat-card">
+      <n-space size="large">
+        <n-card size="small" class="stat-card" :bordered="false">
           <span class="label">当前营业额</span>
           <span class="value revenue">¥{{ orderStore.totalRevenue.toFixed(2) }}</span>
-        </div>
-        <div class="stat-card">
+        </n-card>
+        <n-card size="small" class="stat-card" :bordered="false">
           <span class="label">待处理订单</span>
           <span class="value">{{ orderStore.pendingOrders.length }}</span>
-        </div>
-      </div>
+        </n-card>
+      </n-space>
       <h4>库存速览</h4>
-      <div v-if="eventDetailStore.isLoading" class="loading">加载库存中...</div>
+      <div v-if="eventDetailStore.isLoading" class="loading">
+        <n-spin size="small">
+          <template #description>加载库存中...</template>
+        </n-spin>
+      </div>
       <div v-else class="stock-list">
         <div 
           v-for="product in eventDetailStore.products" 
@@ -28,9 +30,7 @@
           class="stock-item"
         >
           <span class="product-name">{{ product.name }}</span>
-          <div class="stock-bar-wrapper">
-            <div class="stock-bar" :style="{ width: stockPercentage(product) + '%' }"></div>
-          </div>
+          <n-progress type="line" :percentage="stockPercentage(product)" :show-indicator="false" />
           <span class="stock-value">
             {{ product.current_stock }} / {{ product.initial_stock }}
           </span>
@@ -43,6 +43,10 @@
 <script setup>
 import { useOrderStore } from '@/stores/orderStore';
 import { onMounted, onUnmounted, ref } from 'vue';
+import { NButton, NCard, NSpace, NSpin, NProgress } from 'naive-ui';
+const props = defineProps({
+  eventId: { type: String, required: true }
+});
 const collapsed = ref(false);
 // 【重要】我们也需要 eventDetailStore 来获取商品列表和它们的 current_stock
 import { useEventDetailStore } from '@/stores/eventDetailStore'; 
@@ -58,8 +62,8 @@ function stockPercentage(product) {
 let timer = null;
 async function refreshStats() {
   await Promise.all([
-    orderStore.fetchOrders?.(),
-    eventDetailStore.fetchProducts?.()
+    orderStore.fetchCompletedOrders?.(),
+    eventDetailStore.fetchProductsForEvent?.(props.eventId)
   ]);
 }
 onMounted(() => {
@@ -86,23 +90,7 @@ onUnmounted(() => {
   cursor: pointer;
   user-select: none;
 }
-.collapse-btn {
-  background: none;
-  border: none;
-  color: var(--accent-color);
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0.2rem 0.8rem;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-.collapse-btn:hover {
-  background: var(--bg-color);
-}
 .stats-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
   margin-bottom: 1.5rem;
 }
 .stat-card {
@@ -148,37 +136,12 @@ h4 {
   text-overflow: unset;        /* 不显示省略号 */
   word-break: break-all;       /* 必要时强制换行 */
 }
-.stock-bar-wrapper {
-  background-color: var(--bg-color);
-  border-radius: 4px;
-  height: 10px;
-  overflow: hidden;
-}
-.stock-bar {
-  background-color: var(--accent-color);
-  height: 100%;
-  transition: width 0.5s ease;
-}
 .stock-value {
   text-align: right;
   font-family: monospace;
 }
 .collapse-btn {
-  background: var(--bg-color);
-  border: 1px solid var(--accent-color);
-  color: var(--accent-color);
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0.2rem 1rem;
-  border-radius: 4px;
   margin-left: 1rem;
-  transition: background 0.2s, border-color 0.2s, color 0.2s;
-  font-weight: bold;
   min-width: 56px;
-}
-.collapse-btn:hover {
-  background: var(--accent-color);
-  color: #fff;
-  border-color: var(--accent-color);
 }
 </style>

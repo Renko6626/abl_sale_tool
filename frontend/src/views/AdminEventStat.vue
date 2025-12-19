@@ -2,60 +2,68 @@
   <div class="admin-event-stat">
     <header class="stat-header">
       <h1>{{ pageTitle }}</h1>
-      <a 
+      <n-button
         v-if="statStore.stats && statStore.stats.summary.length > 0"
-        :href="statStore.downloadUrl" 
-        class="btn btn-primary download-btn"
+        tag="a"
+        :href="statStore.downloadUrl"
+        class="download-btn"
+        type="primary"
+        tertiary
+        size="small"
         download
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         下载 Excel 报告
-      </a>
+      </n-button>
     </header>
 
     <div v-if="statStore.isLoading" class="loading-indicator">
-      <div class="spinner"></div>
-      <p>正在从数据库中提取统计信息...</p>
+      <n-spin size="large">
+        <template #description>正在从数据库中提取统计信息...</template>
+      </n-spin>
     </div>
 
     <div v-else-if="statStore.error" class="error-message">
-      <p><strong>[ 后端数据库寄了！ ]</strong></p>
-      <p>{{ statStore.error }}</p>
-      <button @click="applyFilters" class="btn btn-secondary">重新建立连接</button>
+      <n-alert type="error" title="后端数据库寄了！" :bordered="false">
+        {{ statStore.error }}
+      </n-alert>
+      <n-button @click="applyFilters" tertiary class="btn-secondary">重新建立连接</n-button>
     </div>
 
     <div v-else-if="statStore.stats" class="stats-content">
-      <StatFilters
-        :product-options="productOptions"
-        :selected-product="selectedProduct"
-        :start-date="startDate"
-        :end-date="endDate"
-        :interval-minutes="intervalMinutes"
-        @update:selectedProduct="val => (selectedProduct = val)"
-        @update:startDate="val => (startDate = val)"
-        @update:endDate="val => (endDate = val)"
-        @update:intervalMinutes="val => (intervalMinutes = val)"
-        @change="applyFilters"
-      />
+      <n-card size="small" embedded>
+        <StatFilters
+          :product-options="productOptions"
+          :selected-product="selectedProduct"
+          :start-date="startDate"
+          :end-date="endDate"
+          :interval-minutes="intervalMinutes"
+          @update:selectedProduct="val => (selectedProduct = val)"
+          @update:startDate="val => (startDate = val)"
+          @update:endDate="val => (endDate = val)"
+          @update:intervalMinutes="val => (intervalMinutes = val)"
+          @change="applyFilters"
+        />
+      </n-card>
 
       <!-- 关键数据总览 -->
       <div class="summary-cards">
-        <div class="card">
+        <n-card class="card" size="small" embedded>
           <span class="label">总销售额</span>
           <span class="value">{{ formatCurrency(statStore.stats.total_revenue) }}</span>
-        </div>
-        <div class="card">
+        </n-card>
+        <n-card class="card" size="small" embedded>
           <span class="label">总销售件数</span>
           <span class="value">{{ totalItemsSold }}</span>
-        </div>
-        <div class="card">
+        </n-card>
+        <n-card class="card" size="small" embedded>
           <span class="label">销售品类数</span>
           <span class="value">{{ productVarietyCount }}</span>
-        </div>
+        </n-card>
       </div>
 
       <!-- 销售趋势图 -->
-      <div class="chart-card">
+      <n-card class="chart-card" size="small" embedded>
         <div class="chart-header">
           <h3>销售额趋势</h3>
           <span v-if="statStore.stats.timeseries?.length">{{ chartSubtitle }}</span>
@@ -68,15 +76,15 @@
           :padding="padding"
         />
         <p v-else class="no-data">// 暂无趋势数据</p>
-      </div>
+      </n-card>
 
       <!-- 销售详情表格 -->
-      <div class="details-table-container">
+      <n-card class="details-table-container" size="small" embedded>
         <h3>销售数据表</h3>
         <p v-if="!statStore.stats.summary.length" class="no-data">
           // 无有效销售数据记录...
         </p>
-        <table v-else>
+        <n-table v-else size="small">
           <thead>
             <tr>
               <th>制品编号</th>
@@ -95,8 +103,8 @@
               <td class="text-right currency-cell">{{ formatCurrency(item.total_revenue_per_item) }}</td>
             </tr>
           </tbody>
-        </table>
-      </div>
+        </n-table>
+      </n-card>
     </div>
   </div>
 </template>
@@ -107,6 +115,7 @@ import { useRoute } from 'vue-router';
 import { useEventStatStore } from '@/stores/eventStatStore';
 import SalesLineChart from '@/components/stats/SalesLineChart.vue';
 import StatFilters from '@/components/stats/StatFilters.vue';
+import { NButton, NSpin, NAlert, NCard, NTable } from 'naive-ui';
 
 const route = useRoute();
 const statStore = useEventStatStore();

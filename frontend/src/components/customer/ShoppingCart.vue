@@ -20,9 +20,9 @@
               <span class="item-price">¥{{ item.price.toFixed(2) }}</span>
             </div>
             <div class="item-controls">
-              <button class="control-btn" @click="$emit('removeFromCart', item.id)">-</button>
+              <n-button circle tertiary @click="$emit('removeFromCart', item.id)">-</n-button>
               <span class="item-quantity">{{ item.quantity }}</span>
-              <button class="control-btn" @click="$emit('addToCart', item)">+</button>
+              <n-button circle tertiary @click="$emit('addToCart', item)">+</n-button>
             </div>
           </li>
         </ul>
@@ -36,13 +36,15 @@
           <span>总计:</span>
           <strong class="total-amount">¥{{ total.toFixed(2) }}</strong>
         </div>
-        <button 
-          class="btn btn-checkout" 
-          :disabled="!cart.length || isCheckingOut" 
+        <n-button 
+          type="primary"
+          block
+          :disabled="!cart.length || isCheckingOut"
+          :loading="isCheckingOut"
           @click="$emit('checkout')"
         >
           {{ isCheckingOut ? '下单中...' : '确认下单' }}
-        </button>
+        </n-button>
       </div>
     </div>
   </div>
@@ -50,6 +52,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { NButton } from 'naive-ui';
 
 const props = defineProps({
   cart: { type: Array, required: true },
@@ -190,21 +193,7 @@ onUnmounted(() => {
   color: var(--accent-color);
 }
 
-.btn-checkout {
-  width: 100%;
-  padding: 1.2rem;
-  font-size: 1.5rem;
-  font-weight: bold;
-  background-color: var(--accent-color);
-  color: var(--bg-color);
-}
-
-.btn-checkout:disabled {
-  background-color: #555;
-  border-color: #555;
-  color: #888;
-  cursor: not-allowed;
-}
+/* checkout 按钮改为 n-button，移除原样式 */
 .shopping-cart {
   display: flex;
   flex-direction: column;

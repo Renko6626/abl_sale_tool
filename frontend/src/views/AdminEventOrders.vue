@@ -8,85 +8,60 @@
     <main>
       <div class="filters">
         <label for="status-filter">筛选状态:</label>
-        <div class="custom-select-wrapper">
-          <select id="status-filter" v-model="statusFilter">
-            <option value="all">所有订单</option>
-            <option value="pending">待处理</option>
-            <option value="completed">已完成</option>
-            <option value="cancelled">已取消</option>
-          </select>
-        </div>
+        <n-select
+          id="status-filter"
+          v-model:value="statusFilter"
+          :options="statusOptions"
+          size="small"
+          style="min-width: 200px;"
+        />
       </div>
 
-      <div v-if="store.isLoading">正在加载订单...</div>
-      <div v-else-if="store.error">{{ store.error }}</div>
+      <div v-if="store.isLoading" class="loading-message">
+        <n-spin size="large">
+          <template #description>正在加载订单...</template>
+        </n-spin>
+      </div>
+      <div v-else-if="store.error" class="error-message">
+        <n-alert type="error" :bordered="false">{{ store.error }}</n-alert>
+      </div>
       
-      <table v-else-if="filteredOrders.length" class="order-table">
-        <thead>
-          <tr>
-            <th>订单ID</th>
-            <th>下单时间</th>
-            <th>商品详情</th>
-            <th>总金额</th>
-            <th class="column-status">状态</th>
-            <th class="column-actions">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="order in filteredOrders" :key="order.id">
-            <td><strong>#{{ order.id }}</strong></td>
-            <td>{{ new Date(order.timestamp).toLocaleString() }}</td>
-            <td>
-              <ul class="item-list">
-                <li v-for="item in order.items" :key="item.id">
-                  {{ item.product_name }} x {{ item.quantity }}
-                </li>
-              </ul>
-            </td>
-            <td><strong>¥{{ order.total_amount.toFixed(2) }}</strong></td>
-            <td>
-              <span class="status-badge" :class="statusClass(order.status)">
-                {{ statusText(order.status) }}
-              </span>
-            </td>
-            <td>
-              <!-- 【核心改动】使用 Headless UI 的 Menu 组件 -->
-              <Menu as="div" class="action-menu">
-                <MenuButton class="action-btn">
-                  <span>操作</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                </MenuButton>
-                <transition
-                  enter-active-class="transition duration-100 ease-out"
-                  enter-from-class="transform scale-95 opacity-0"
-                  enter-to-class="transform scale-100 opacity-100"
-                  leave-active-class="transition duration-75 ease-in"
-                  leave-from-class="transform scale-100 opacity-100"
-                  leave-to-class="transform scale-95 opacity-0"
-                >
-                  <MenuItems class="menu-items">
-                    <MenuItem v-if="order.status !== 'pending'" v-slot="{ active }">
-                      <button :class="{ 'active': active }" @click="changeStatus(order.id, 'pending')">
-                        设为待处理
-                      </button>
-                    </MenuItem>
-                    <MenuItem v-if="order.status !== 'completed'" v-slot="{ active }">
-                      <button :class="{ 'active': active }" @click="changeStatus(order.id, 'completed')">
-                        设为已完成
-                      </button>
-                    </MenuItem>
-                    <MenuItem v-if="order.status !== 'cancelled'" v-slot="{ active }">
-                      <button :class="{ 'active': active }" @click="changeStatus(order.id, 'cancelled')">
-                        设为已取消
-                      </button>
-                    </MenuItem>
-                  </MenuItems>
-                </transition>
-              </Menu>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <n-card v-else-if="filteredOrders.length" size="small">
+        <n-table class="order-table" size="small">
+          <thead>
+            <tr>
+              <th>订单ID</th>
+              <th>下单时间</th>
+              <th>商品详情</th>
+              <th>总金额</th>
+              <th class="column-status">状态</th>
+              <th class="column-actions">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in filteredOrders" :key="order.id">
+              <td><strong>#{{ order.id }}</strong></td>
+              <td>{{ new Date(order.timestamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) }}</td>
+              <td>
+                <ul class="item-list">
+                  <li v-for="item in order.items" :key="item.id">
+                    {{ item.product_name }} x {{ item.quantity }}
+                  </li>
+                </ul>
+              </td>
+              <td><strong>¥{{ order.total_amount.toFixed(2) }}</strong></td>
+              <td>
+                <n-tag :type="tagType(order.status)" size="large" round>{{ statusText(order.status) }}</n-tag>
+              </td>
+              <td>
+                <n-dropdown :options="actionOptions(order.status)" @select="key => changeStatus(order.id, key)">
+                  <n-button size="large">操作</n-button>
+                </n-dropdown>
+              </td>
+            </tr>
+          </tbody>
+        </n-table>
+      </n-card>
       <p v-else>没有找到符合条件的订单。</p>
     </main>
   </div>
@@ -96,13 +71,21 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useEventDetailStore } from '@/stores/eventDetailStore';
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
+import { NSelect, NSpin, NAlert, NTable, NCard, NTag, NDropdown, NButton, useDialog, useMessage } from 'naive-ui';
 const props = defineProps({
   id: { type: String, required: true }
 });
 
 const store = useEventDetailStore();
 const statusFilter = ref('all'); // 筛选器的状态
+const dialog = useDialog();
+const message = useMessage();
+const statusOptions = [
+  { label: '所有订单', value: 'all' },
+  { label: '待处理', value: 'pending' },
+  { label: '已完成', value: 'completed' },
+  { label: '已取消', value: 'cancelled' }
+];
 
 // 计算属性，根据筛选器动态过滤订单
 const filteredOrders = computed(() => {
@@ -112,15 +95,22 @@ const filteredOrders = computed(() => {
   return store.allOrders.filter(order => order.status === statusFilter.value);
 });
 
-async function changeStatus(orderId, newStatus) {
+function changeStatus(orderId, newStatus) {
   if (!newStatus) return;
-  if (window.confirm(`确定要将订单 #${orderId} 的状态修改为 "${statusText(newStatus)}" 吗？`)) {
-    try {
-      await store.adminUpdateOrderStatus(props.id, orderId, newStatus);
-    } catch (error) {
-      alert(error.message);
+  dialog.warning({
+    title: '确认操作',
+    content: `确定要将订单 #${orderId} 的状态修改为 "${statusText(newStatus)}" 吗？`,
+    positiveText: '确认',
+    negativeText: '取消',
+    async onPositiveClick() {
+      try {
+        await store.adminUpdateOrderStatus(props.id, orderId, newStatus);
+        message.success('状态已更新');
+      } catch (error) {
+        message.error(error.message || '更新失败');
+      }
     }
-  }
+  });
 }
 
 // --- 辅助函数 ---
@@ -128,12 +118,19 @@ function statusText(status) {
   const map = { pending: '待处理', completed: '已完成', cancelled: '已取消' };
   return map[status] || status;
 }
-function statusClass(status) {
-  return {
-    'status-pending': status === 'pending',
-    'status-completed': status === 'completed',
-    'status-cancelled': status === 'cancelled',
-  };
+function tagType(status) {
+  if (status === 'pending') return 'warning';
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'default';
+  return 'default';
+}
+
+function actionOptions(status) {
+  const opts = [];
+  if (status !== 'pending') opts.push({ label: '设为待处理', key: 'pending' });
+  if (status !== 'completed') opts.push({ label: '设为已完成', key: 'completed' });
+  if (status !== 'cancelled') opts.push({ label: '设为已取消', key: 'cancelled' });
+  return opts;
 }
 
 // --- 生命周期 ---
@@ -303,7 +300,14 @@ button:disabled {
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1.5rem;
+}
+/* 文字大小要保证能排开一行 */
+.filters label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap; /* 防止中文自动换行 */
+  flex-shrink: 0;      /* 在 flex 布局中不缩小导致换行 */
 }
 .custom-select-wrapper {
   position: relative;

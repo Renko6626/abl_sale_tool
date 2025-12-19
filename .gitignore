@@ -27,3 +27,14 @@ package-lock.json
 
 #backend里面的logs文件夹
 backend/logs/
+
+# 整个frontend-classical目录
+frontend-classical/
+
+# 整个boothApp/目录
+boothApp/
+
+# 所有.zip文件
+*.zip
+# 所有.tar.gz文件
+*.tar.gz

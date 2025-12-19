@@ -2,21 +2,40 @@
   <div class="list-container">
     <h2>展会列表</h2>
 
-    <!-- 【新增】搜索和过滤区域 -->
+    <!-- 搜索和过滤区域（Naive UI） -->
     <div class="search-container">
-      <div class="search-group">
-        <label for="search-name">按名称搜索:</label>
-        <input id="search-name" type="text" v-model="searchName" placeholder="输入展会名称关键字...">
-      </div>
-      <div class="search-group">
-        <label for="search-date-start">日期范围:</label>
-        <div class="date-range-inputs">
-          <input id="search-date-start" type="date" v-model="dateRangeStart">
-          <span>至</span>
-          <input id="search-date-end" type="date" v-model="dateRangeEnd">
+      <n-space wrap align="end" :size="16">
+        <div class="search-group">
+          <label for="search-name">按名称搜索:</label>
+          <n-input
+            id="search-name"
+            v-model:value="searchName"
+            clearable
+            placeholder="输入展会名称关键字..."
+          />
         </div>
-      </div>
-       <button @click="clearFilters" class="btn btn-secondary">清空筛选</button>
+        <div class="search-group">
+          <label for="search-date-start">日期范围:</label>
+          <div class="date-range-inputs">
+            <n-date-picker
+              id="search-date-start"
+              v-model:value="dateRangeStart"
+              type="date"
+              clearable
+              value-format="yyyy-MM-dd"
+            />
+            <span>至</span>
+            <n-date-picker
+              id="search-date-end"
+              v-model:value="dateRangeEnd"
+              type="date"
+              clearable
+              value-format="yyyy-MM-dd"
+            />
+          </div>
+        </div>
+        <n-button tertiary @click="clearFilters">清空筛选</n-button>
+      </n-space>
     </div>
 
     <div v-if="store.isLoading" class="loading-message">正在加载展会数据...</div>
@@ -32,23 +51,24 @@
       v-slot="{ navigate }"
       >
       <li @click="navigate" class="event-card clickable" role="link">
-        <div class="event-info">
-          <h3>{{ event.name }}</h3>
-          <p>日期: {{ event.date }}</p>
-          <p>地点: {{ event.location || '未指定' }}</p>
-        </div>
-        <div class="event-status">
-          <span class="status-badge" :class="statusClass(event.status)">
-            {{ event.status }}
-          </span>
-          <div class="status-actions">
-            <button v-if="event.status === '未进行'" @click.stop="changeStatus(event.id, '进行中')" class="action-btn">► 开始</button>
-            <button v-if="event.status === '进行中'" @click.stop="changeStatus(event.id, '已结束')" class="action-btn">■ 结束</button>
-            <button v-if="event.status === '已结束'" @click.stop="changeStatus(event.id,'未进行')" class="action-btn">► 重新开始</button>
-            <button @click.stop="openEditModal(event)" class="action-btn edit-btn">编辑</button>
-            <button @click.stop="confirmDelete(event.id)" class="action-btn delete-btn">删除</button>
+        <n-card :title="event.name" :hoverable="true" embedded>
+          <div class="event-info">
+            <p>日期: {{ event.date }}</p>
+            <p>地点: {{ event.location || '未指定' }}</p>
           </div>
-        </div>
+          <template #header-extra>
+            <n-tag :type="statusType(event.status)" size="small">{{ event.status }}</n-tag>
+          </template>
+          <template #footer>
+            <div class="status-actions">
+              <n-button v-if="event.status === '未进行'" size="small" @click.stop="changeStatus(event.id, '进行中')">► 开始</n-button>
+              <n-button v-if="event.status === '进行中'" size="small" @click.stop="changeStatus(event.id, '已结束')">■ 结束</n-button>
+              <n-button v-if="event.status === '已结束'" size="small" @click.stop="changeStatus(event.id,'未进行')">► 重新开始</n-button>
+              <n-button size="small" type="primary" @click.stop="openEditModal(event)">编辑</n-button>
+              <n-button size="small" type="error" @click.stop="confirmDelete(event.id)">删除</n-button>
+            </div>
+          </template>
+        </n-card>
       </li>
       </RouterLink>
     </ul>
@@ -80,6 +100,7 @@ import { useEventStore } from '@/stores/eventStore';
 import AppModal from '@/components/shared/AppModal.vue';
 import EditEventForm from '@/components/event/EditEventForm.vue';
 import { RouterLink } from 'vue-router';
+import { NInput, NDatePicker, NButton, NCard, NSpace, NTag } from 'naive-ui';
 
 const store = useEventStore();
 const updatingStatusId = ref(null);
@@ -88,8 +109,8 @@ const updatingStatusId = ref(null);
 // 【新增】搜索和过滤相关的状态
 // =======================================================
 const searchName = ref('');
-const dateRangeStart = ref('');
-const dateRangeEnd = ref('');
+const dateRangeStart = ref(null);
+const dateRangeEnd = ref(null);
 const filteredEvents = computed(() => {
   // 从原始列表开始
   let events = store.events;
@@ -121,8 +142,8 @@ const filteredEvents = computed(() => {
 // 【新增】清空所有筛选条件的函数
 function clearFilters() {
   searchName.value = '';
-  dateRangeStart.value = '';
-  dateRangeEnd.value = '';
+  dateRangeStart.value = null;
+  dateRangeEnd.value = null;
 }
 
 // 【新增】编辑模态框相关的状态
@@ -140,6 +161,11 @@ const statusClass = (status) => {
     'status-finished': status === '已结束',
     'status-upcoming': status === '未进行',
   };
+};
+const statusType = (status) => {
+  if (status === '进行中') return 'warning';
+  if (status === '已结束') return 'default';
+  return 'success'; // 未进行
 };
 async function confirmDelete(eventId) {
   // 弹出浏览器原生确认框

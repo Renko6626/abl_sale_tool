@@ -14,20 +14,15 @@
     </header>
 
     <main class="order-feed-container">
-      <LiveStats class="live-stats-module" />
+      <LiveStats class="live-stats-module" :event-id="props.id" />
+      <n-alert v-if="store.pendingOrders.length" type="warning" :bordered="false" style="margin-bottom: 1rem;">
+        有 {{ store.pendingOrders.length }} 条待处理订单，请及时处理。
+      </n-alert>
       <div class="order-tabs">
-        <button 
-          :class="{ active: currentTab === 'pending' }" 
-          @click="currentTab = 'pending'"
-        >
-          待处理 ({{ store.pendingOrders.length }})
-        </button>
-        <button 
-          :class="{ active: currentTab === 'completed' }" 
-          @click="switchToCompletedTab"
-        >
-          已完成
-        </button>
+        <n-tabs v-model:value="currentTab" type="line">
+          <n-tab-pane :label="'待处理 (' + store.pendingOrders.length + ')'" name="pending" />
+          <n-tab-pane label="已完成" name="completed" />
+        </n-tabs>
       </div>
 
       <!-- 待处理订单列表 -->
@@ -62,12 +57,13 @@
          />
       </div>
     </main>
-    <<audio ref="audioRef" src="/assets/notify.wav" preload="auto"></audio>
+    <audio ref="audioRef" src="/assets/notify.wav" preload="auto"></audio>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { NButton, NTabs, NTabPane, NAlert, useDialog, useMessage } from 'naive-ui';
 // ...existing imports...
 
 import { useOrderStore } from '@/stores/orderStore';
@@ -92,6 +88,8 @@ const eventDetailStore = useEventDetailStore();
 
 const isRefreshing = ref(false);
 const currentTab = ref('pending');
+const dialog = useDialog();
+const message = useMessage();
 
 const eventName = computed(() => {
   const event = eventStore.events.find(e => e.id === parseInt(props.id, 10));
@@ -100,7 +98,6 @@ const eventName = computed(() => {
 
 async function manualRefresh() {
   isRefreshing.value = true;
-  // 【步骤 3】手动刷新时，也需要刷新库存数据
   await Promise.all([
     store.pollPendingOrders(),
     eventDetailStore.fetchProductsForEvent(props.id),
@@ -112,28 +109,36 @@ async function manualRefresh() {
 async function completeOrder(orderId) {
   try {
     await store.markOrderAsCompleted(orderId);
-    // 【步骤 4】订单完成后，刷新库存数据以更新 LiveStats
     await eventDetailStore.fetchProductsForEvent(props.id);
     await store.fetchCompletedOrders();
+    message.success('订单已完成配货');
   } catch (error) {
-    alert(error.message);
+    message.error(error?.message || '操作失败');
   }
 }
 
 async function cancelOrder(orderId) {
-  if (window.confirm("确定要取消这个订单吗？此操作无法撤销。")) {
-    try {
-      await store.cancelOrder(orderId);
-    } catch (error) {
-      alert(error.message);
+  dialog.warning({
+    title: '确认取消',
+    content: '确定要取消这个订单吗？此操作无法撤销。',
+    positiveText: '确认',
+    negativeText: '返回',
+    async onPositiveClick() {
+      try {
+        await store.cancelOrder(orderId);
+        message.success('订单已取消');
+      } catch (error) {
+        message.error(error?.message || '取消失败');
+      }
     }
-  }
+  });
 }
 
-function switchToCompletedTab() {
-  currentTab.value = 'completed';
-  store.fetchCompletedOrders();
-}
+watch(currentTab, (val) => {
+  if (val === 'completed') {
+    store.fetchCompletedOrders();
+  }
+});
 
 onMounted(() => {
   if (eventStore.events.length === 0) {
@@ -177,22 +182,8 @@ onUnmounted(() => {
 .page-header p { margin: 0.25rem 0 0; color: #aaa; }
 
 .order-tabs {
-  display: flex;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 1.5rem;
-}
-.order-tabs button {
-  padding: 0.75rem 1.5rem;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  color: #888;
-  cursor: pointer;
-  font-size: 1rem;
-}
-.order-tabs button.active {
-  color: var(--accent-color);
-  border-bottom-color: var(--accent-color);
 }
 
 .no-orders-message {

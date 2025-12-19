@@ -1,30 +1,44 @@
 <template>
   <div class="selection-container">
-    <div class="selection-box">
-      <h2>请选择您所在的展会</h2>
+    <n-card class="selection-box" :bordered="false">
+      <template #header>
+        <h2>请选择您所在的展会</h2>
+      </template>
       <p>选择后将需要输入该展会的摊主密码。</p>
-      
-      <div v-if="eventStore.isLoading" class="loading-message">正在加载展会列表...</div>
-      <div v-else-if="eventStore.error" class="error-message">{{ eventStore.error }}</div>
-      
+
+      <div v-if="eventStore.isLoading" class="loading-message">
+        <n-spin>
+          <template #description>正在加载展会列表...</template>
+        </n-spin>
+      </div>
+      <div v-else-if="eventStore.error" class="error-message">
+        <n-alert type="error" :bordered="false">{{ eventStore.error }}</n-alert>
+      </div>
+
       <div v-else-if="ongoingEvents.length" class="event-list">
-        <div 
-          v-for="event in ongoingEvents" 
-          :key="event.id"
-          class="event-item"
-          @click="selectEvent(event)"
-        >
-          <h3>{{ event.name }}</h3>
-          <span>{{ event.date }}</span>
-        </div>
+        <n-space vertical size="large">
+          <n-card
+            v-for="event in ongoingEvents"
+            :key="event.id"
+            class="event-item"
+            hoverable
+            :bordered="true"
+            @click="selectEvent(event)"
+          >
+            <h3>{{ event.name }}</h3>
+            <span>{{ event.date }}</span>
+          </n-card>
+        </n-space>
       </div>
 
       <p v-else class="no-events-message">当前没有正在进行的展会。</p>
 
       <div class="admin-login-link">
-        <RouterLink to="/login/admin">管理员入口</RouterLink>
+        <RouterLink to="/login/admin">
+          <n-button text>管理员入口</n-button>
+        </RouterLink>
       </div>
-    </div>
+    </n-card>
   </div>
 </template>
 
@@ -32,6 +46,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useEventStore } from '@/stores/eventStore';
+import { NCard, NSpin, NAlert, NSpace, NButton } from 'naive-ui';
 
 const eventStore = useEventStore();
 const router = useRouter();
@@ -82,15 +97,7 @@ onMounted(() => {
   gap: 1rem;
 }
 .event-item {
-  padding: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
-}
-.event-item:hover {
-  background-color: rgba(3, 218, 198, 0.05);
-  border-color: var(--accent-color);
 }
 .no-events-message {
   margin-top: 2rem;
@@ -100,11 +107,5 @@ onMounted(() => {
   margin-top: 2rem;
   font-size: 0.9rem;
 }
-.admin-login-link a {
-  color: #888;
-  text-decoration: none;
-}
-.admin-login-link a:hover {
-  color: var(--accent-color);
-}
+.admin-login-link a { text-decoration: none; }
 </style>
