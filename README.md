@@ -1,3 +1,13 @@
+
+# ⚠️ 此项目已归档 (Archived)
+
+> **注意**：这是 [摊盒 (Booth-Kernel)](https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp) 的早期原型代码（2025年版）。
+> 本仓库仅作为**开发历史存档**展示，不再维护。
+
+如果您想下载最新、稳定、免配置的客户端，请移步官方新仓库：
+👉 **[Academy-of-Boundary-Landscape/ABL-BoothApp](https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp)**
+
+
 # 东方project展会出摊辅助工具
 
 一个为东方Project同人展摊主打造的、极简高效的销售与库存管理解决方案。
@@ -31,7 +41,7 @@
 ### ⭐本地应用版⭐
 - 被动迁移到boothApp目录下, 以区别于网络版
 - 扫码通过局域网和电脑端控制台连接
-
+- 
 ### 2025-12-19更新:
 - 系统性重构了前端代码, 使用了我最喜欢的NaiveUI组件库, 让界面更加美观一致, 并且代码极大简洁可维护了。
 - 给销售统计页面加入了销售折线图, 现在管理员可以更直观地看到展会当天销售趋势
